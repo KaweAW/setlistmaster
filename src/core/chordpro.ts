@@ -10,11 +10,35 @@ export interface ChordSegment {
 
 export type SectionKind = 'verse' | 'chorus' | 'bridge' | 'tab' | 'none';
 
+/** Colours of the sticky notes written in the text with `{note: …}` or `{note_pink: …}`. */
+export const NOTE_COLORS = ['yellow', 'pink', 'green', 'blue', 'orange'] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+const NOTE_TAG = new RegExp(`^note(?:_(${NOTE_COLORS.join('|')}))?$`);
+
+/** The directive line for a note. The text is kept on one line and cannot contain the closing brace. */
+export function noteDirective(color: NoteColor, text: string): string {
+  const clean = text.replace(/[\r\n]+/g, ' ').replace(/[{}]/g, '').trim();
+  return color === 'yellow' ? `{note: ${clean}}` : `{note_${color}: ${clean}}`;
+}
+
+/** Puts a note on its own line just before the line the cursor is on (or at the end for an empty text). Returns the new text and where the cursor goes. */
+export function insertNote(source: string, cursor: number, color: NoteColor, text: string): { text: string; cursor: number } {
+  const note = noteDirective(color, text);
+  if (source === '') return { text: note, cursor: note.length };
+  const at = Math.max(0, Math.min(cursor, source.length));
+  const lineStart = source.lastIndexOf('\n', at - 1) + 1;
+  const next = `${source.slice(0, lineStart)}${note}\n${source.slice(lineStart)}`;
+  return { text: next, cursor: lineStart + note.length + 1 };
+}
+
 export type ChartLine =
   | { kind: 'lyrics'; section: SectionKind; segments: ChordSegment[] }
   /** Section start ({start_of_chorus}): `text` is the optional label, empty when none was given. */
   | { kind: 'label'; section: SectionKind; text: string }
   | { kind: 'comment'; text: string }
+  /** A sticky note: a reminder for the players, shown in colour among the lyrics. */
+  | { kind: 'note'; color: NoteColor; text: string }
   | { kind: 'tab'; text: string }
   | { kind: 'blank' };
 
@@ -59,7 +83,10 @@ function build(song: ParsedSong): ParsedChart {
         } else if (name === 'title') chart.title = value;
         else if (name === 'artist') chart.artist = value;
         else if (name === 'key') chart.key = value;
-        else produced = true; // end_of_*, page/column breaks, other directives: nothing to show
+        else if (NOTE_TAG.test(name)) {
+          if (value) lines.push({ kind: 'note', color: (NOTE_TAG.exec(name)![1] as NoteColor | undefined) ?? 'yellow', text: value });
+          produced = true;
+        } else produced = true; // end_of_*, page/column breaks, other directives: nothing to show
       } else if (item instanceof Literal) {
         lines.push({ kind: 'tab', text: item.string });
         produced = true;

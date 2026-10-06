@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { insertNote, NOTE_COLORS, type NoteColor } from '../core/chordpro';
 import { formatBytes } from '../core/format';
 import type { Instrument } from '../core/types';
 import { useT } from '../i18n';
 import { ConvertDialog } from './ConvertDialog';
-import { Button, buttonClass, Field, textareaClass } from './ui';
+import { Button, buttonClass, Field, inputClass, textareaClass } from './ui';
 
 export interface PdfInfo {
   id: string;
@@ -50,10 +51,28 @@ export function PartsEditor({
   const t = useT();
   const [active, setActive] = useState<string>(TEXT_PART);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteColor, setNoteColor] = useState<NoteColor>('yellow');
+  const [noteText, setNoteText] = useState('');
+  const area = useRef<HTMLTextAreaElement>(null);
   const shown = instruments.filter((i) => ticked.includes(i.id));
   const addable = instruments.filter((i) => !ticked.includes(i.id));
   const current = shown.find((i) => i.id === active);
   const part = current ? current.id : TEXT_PART; // an instrument that was removed falls back to the text
+
+  /** Puts the note on its own line above the line the cursor is on, and leaves the cursor after it. */
+  function addNote() {
+    if (!noteText.trim()) return;
+    const el = area.current;
+    const { text, cursor } = insertNote(textOf(part), el?.selectionStart ?? textOf(part).length, noteColor, noteText);
+    setText(part, text);
+    setNoteText('');
+    setNoteOpen(false);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(cursor, cursor);
+    });
+  }
 
   function add(id: string) {
     onTick(id);
@@ -105,14 +124,53 @@ export function PartsEditor({
             className={`${textareaClass} font-mono text-[15px]`}
             rows={part === TEXT_PART ? 12 : 10}
             spellCheck={false}
+            ref={area}
             value={textOf(part)}
             onChange={(e) => setText(part, e.target.value)}
           />
         </Field>
         <p className="-mt-2 text-xs text-soft">{current ? t('part.hint') : t('field.chordpro.hint')}</p>
-        <div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setNoteOpen((o) => !o)} aria-expanded={noteOpen}>{t('note.add')}</Button>
           <Button variant="secondary" onClick={() => setConvertOpen(true)}>{t('convert.open')}</Button>
         </div>
+        {noteOpen && (
+          <div className="space-y-3 rounded-md border border-line bg-paper p-3">
+            <p className="text-xs text-soft">{t('note.hint')}</p>
+            <div role="radiogroup" aria-label={t('note.color')} className="flex gap-2">
+              {NOTE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={noteColor === c}
+                  aria-label={t(`note.color.${c}`)}
+                  onClick={() => setNoteColor(c)}
+                  className={`sticky-note--${c} h-9 w-9 rounded-sm border border-black/10 shadow-sm ${noteColor === c ? 'ring-2 ring-ink ring-offset-2 ring-offset-paper' : ''}`}
+                  style={{ background: 'var(--note-bg)' }}
+                />
+              ))}
+            </div>
+            <Field label={t('note.text')}>
+              <input
+                className={inputClass}
+                value={noteText}
+                maxLength={160}
+                onChange={(e) => setNoteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addNote();
+                  }
+                }}
+              />
+            </Field>
+            <div className="flex gap-2">
+              <Button onClick={addNote} disabled={!noteText.trim()}>{t('note.insert')}</Button>
+              <Button variant="secondary" onClick={() => setNoteOpen(false)}>{t('common.cancel')}</Button>
+            </div>
+          </div>
+        )}
         <PdfScope instrumentId={current?.id} {...(current ? { label: current.name } : {})} {...pdfs} />
         {current && (
           <div className="border-t border-line pt-3">

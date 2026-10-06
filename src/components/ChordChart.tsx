@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { transposeChord, type Accidentals } from '../core/chords';
 import type { ChartLine, ParsedChart, SectionKind } from '../core/chordpro';
 import { useT, type MessageKey } from '../i18n';
@@ -32,6 +33,13 @@ export function ChordChart({
         return <div key={index} className="h-[0.9em]" />;
       case 'comment':
         return <p key={index} className="my-2 text-[0.8em] italic text-soft">{line.text}</p>;
+      case 'note':
+        return (
+          <p key={index} className={`sticky-note sticky-note--${line.color}`} style={{ '--tilt': index % 2 ? '0.9deg' : '-0.8deg' } as CSSProperties}>
+            <span className="sr-only">{t('note.label')}: </span>
+            {line.text}
+          </p>
+        );
       case 'tab':
         return <pre key={index} className="overflow-x-auto font-mono text-[0.75em] leading-tight">{line.text}</pre>;
       case 'label': {
