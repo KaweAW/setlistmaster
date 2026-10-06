@@ -15,7 +15,7 @@ function device(remote: FakeRemote, start = 1_000_000) {
   return { store, engine, clock, statuses, applied };
 }
 const last = (d: { statuses: BandSyncStatus[] }) => d.statuses[d.statuses.length - 1]!;
-const COUNT = 3 + 4 + 25 + 1 + 5 + 22; // performers, tunings, songs, setlist, blocks, items of the starting data
+const COUNT = 3 + 4 + 3 + 25 + 1 + 5 + 22; // performers, tunings, instruments, songs, setlist, blocks, items of the starting data
 
 let remote: FakeRemote;
 let a: ReturnType<typeof device>;
@@ -82,7 +82,7 @@ describe('editing on two devices', () => {
 
   it('carries deletions, and new records, both ways', async () => {
     a.clock.t += 1000;
-    const created = await a.store.songs.create({ bandId, title: 'New one', artist: 'X', capo: 0, tuningId: (await a.store.tunings.listBy('bandId', bandId))[0]!.id, defaultPerformerIds: [], chordpro: '', notes: '', tags: [] });
+    const created = await a.store.songs.create({ bandId, title: 'New one', artist: 'X', capo: 0, tuningId: (await a.store.tunings.listBy('bandId', bandId))[0]!.id, defaultPerformerIds: [], instrumentIds: [], chordpro: '', notes: '', tags: [] });
     const gone = await song(a, 'Zombie');
     await a.store.songs.remove(gone.id);
     await a.engine.syncBand(bandId);

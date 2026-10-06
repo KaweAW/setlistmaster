@@ -3,7 +3,9 @@ import type {
   Band,
   BaseEntity,
   Block,
+  Instrument,
   Member,
+  Part,
   Performer,
   Setlist,
   SetlistItem,
@@ -86,6 +88,8 @@ export interface DataStore {
   members: Repository<Member>;
   performers: Repository<Performer>;
   tunings: Repository<Tuning>;
+  instruments: Repository<Instrument>;
+  parts: Repository<Part>;
   songs: Repository<Song>;
   setlists: Repository<Setlist>;
   blocks: Repository<Block>;

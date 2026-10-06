@@ -10,6 +10,8 @@ type Row = BaseEntity & { bandId: string };
 const SCHEMAS = {
   performer: s.performerSchema,
   tuning: s.tuningSchema,
+  instrument: s.instrumentSchema,
+  part: s.partSchema,
   song: s.songSchema,
   setlist: s.setlistSchema,
   block: s.blockSchema,
@@ -27,7 +29,7 @@ export class DexieSyncStore implements SyncStore {
 
   private table(kind: SyncKind): EntityTable<Row, 'id'> {
     const tables = {
-      performer: this.db.performers, tuning: this.db.tunings, song: this.db.songs,
+      performer: this.db.performers, tuning: this.db.tunings, instrument: this.db.instruments, part: this.db.parts, song: this.db.songs,
       setlist: this.db.setlists, block: this.db.blocks, item: this.db.items,
     };
     return tables[kind] as unknown as EntityTable<Row, 'id'>;
@@ -112,7 +114,7 @@ export class DexieSyncStore implements SyncStore {
     await this.ready;
     const { db } = this;
     let applied = 0;
-    await db.transaction('rw', [db.performers, db.tunings, db.songs, db.setlists, db.blocks, db.items, db.outbox], async () => {
+    await db.transaction('rw', [db.performers, db.tunings, db.instruments, db.parts, db.songs, db.setlists, db.blocks, db.items, db.outbox], async () => {
       for (const record of records) {
         if (!this.linked.has(record.bandId)) continue; // only bands we sync
         const parsed = SCHEMAS[record.kind].safeParse(record.data);

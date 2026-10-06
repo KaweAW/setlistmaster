@@ -14,7 +14,7 @@ const tunings: Tuning[] = [
   { ...base, id: 'drop', name: 'Drop D', notes: 'D A D G B E', isStandard: false },
 ];
 const song = (id: string, over: Partial<Song> = {}): Song => ({
-  ...base, id, title: id, artist: '', capo: 0, tuningId: 'std', defaultPerformerIds: ['julie'],
+  ...base, id, title: id, artist: '', capo: 0, tuningId: 'std', defaultPerformerIds: ['julie'], instrumentIds: [],
   chordpro: '', notes: '', tags: [], ...over,
 });
 const item = (songId: string, over: Partial<SetlistItem> = {}): SetlistItem => ({
