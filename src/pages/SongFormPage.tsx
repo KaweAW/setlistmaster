@@ -1,12 +1,12 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { formatBytes, formatDuration, parseDuration } from '../core/format';
+import { formatDuration, parseDuration } from '../core/format';
 import { newId } from '../core/ids';
 import { collectTags } from '../core/songFilter';
 import { normalizeTags } from '../core/tags';
 import { formatTuningNotes } from '../core/tuning';
 import type { Instrument, Part, Performer, Song, Tuning } from '../core/types';
-import { ConvertDialog } from '../components/ConvertDialog';
+import { PartsEditor, TEXT_PART, type PdfInfo, type PendingPdf } from '../components/PartsEditor';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { TuningForm } from '../components/TuningForm';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
@@ -19,21 +19,8 @@ import { useT, type MessageKey } from '../i18n';
 
 const KEY_SUGGESTIONS = ['C', 'Cm', 'C#', 'C#m', 'D', 'Dm', 'Eb', 'Ebm', 'E', 'Em', 'F', 'Fm', 'F#', 'F#m', 'G', 'Gm', 'Ab', 'Abm', 'A', 'Am', 'Bb', 'Bbm', 'B', 'Bm'];
 const NEW_TUNING = '__new__';
-
-interface PdfInfo {
-  id: string;
-  name: string;
-  size: number;
-  /** Undefined = the plain text's PDF. */
-  instrumentId?: string | undefined;
-}
-
-/** A PDF chosen in the form, saved with the song. */
-interface PendingPdf {
-  key: string;
-  file: File;
-  instrumentId?: string | undefined;
-}
+const cardTitle = 'font-display text-lg font-bold uppercase tracking-wide';
+const card = 'space-y-4 rounded-lg border border-line bg-surface p-4';
 
 export default function SongFormPage() {
   const { songId } = useParams();
@@ -136,7 +123,6 @@ function SongForm({
   const [tagInput, setTagInput] = useState('');
 
   const [newTuningOpen, setNewTuningOpen] = useState(false);
-  const [convertOpen, setConvertOpen] = useState(false);
   const [keptPdfs, setKeptPdfs] = useState<PdfInfo[]>(initialPdfs);
   const [newPdfs, setNewPdfs] = useState<PendingPdf[]>([]);
   const [errors, setErrors] = useState<Errors>({});
@@ -162,9 +148,13 @@ function SongForm({
     setPerformerIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   }
 
-  function toggleInstrument(id: string) {
-    setInstrumentIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-  }
+  const tick = (id: string) => setInstrumentIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+  const untick = (id: string) => setInstrumentIds((ids) => ids.filter((x) => x !== id));
+  const textOf = (part: string) => (part === TEXT_PART ? chordpro : (partTexts[part] ?? ''));
+  const setText = (part: string, text: string) => (part === TEXT_PART ? setChordpro(text) : setPartTexts((x) => ({ ...x, [part]: text })));
+  const hasContent = (instrumentId: string) =>
+    (partTexts[instrumentId] ?? '').trim() !== '' ||
+    keptPdfs.some((f) => f.instrumentId === instrumentId) || newPdfs.some((f) => f.instrumentId === instrumentId);
 
   function addPdfs(files: FileList | null, instrumentId: string | undefined) {
     if (!files) return;
@@ -270,6 +260,8 @@ function SongForm({
       </div>
 
       <form onSubmit={onSubmit} noValidate className="space-y-5">
+        <section className={card}>
+        <h2 className={cardTitle}>{t('song.section.basics')}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('field.title')} error={errors.title && t(errors.title)}>
             <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoComplete="off" />
@@ -342,59 +334,24 @@ function SongForm({
             })}
           </div>
         </FieldGroup>
+        </section>
 
-        <Field label={t('field.chordpro')} hint={t('field.chordpro.hint')}>
-          <textarea
-            className={`${textareaClass} font-mono text-[15px]`}
-            rows={10}
-            spellCheck={false}
-            value={chordpro}
-            onChange={(e) => setChordpro(e.target.value)}
+        <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <h2 className={cardTitle}>{t('part.section')}</h2>
+          <PartsEditor
+            instruments={instruments}
+            ticked={instrumentIds}
+            onTick={tick}
+            onUntick={untick}
+            textOf={textOf}
+            setText={setText}
+            hasContent={hasContent}
+            pdfs={{ kept: keptPdfs, added: newPdfs, setKept: setKeptPdfs, setAdded: setNewPdfs, onAdd: addPdfs }}
           />
-        </Field>
-        <div className="-mt-3">
-          <Button variant="secondary" onClick={() => setConvertOpen(true)}>{t('convert.open')}</Button>
-        </div>
+        </section>
 
-        {instruments.length > 0 && (
-          <FieldGroup legend={t('field.instruments')}>
-            <p className="mb-2 text-sm text-soft">{t('field.instruments.hint')}</p>
-            <div className="flex flex-wrap gap-2">
-              {instruments.map((i) => (
-                <button
-                  key={i.id}
-                  type="button"
-                  aria-pressed={instrumentIds.includes(i.id)}
-                  onClick={() => toggleInstrument(i.id)}
-                  className={`h-11 rounded-full border px-4 text-base font-semibold ${
-                    instrumentIds.includes(i.id) ? 'border-ink bg-ink text-paper' : 'border-line bg-surface text-ink'
-                  }`}
-                >
-                  {i.name}
-                </button>
-              ))}
-            </div>
-            {instruments.filter((i) => instrumentIds.includes(i.id)).map((i) => (
-              <div key={i.id} className="mt-3 space-y-2">
-                <Field label={t('part.chordpro', { name: i.name })}>
-                  <textarea
-                    className={`${textareaClass} font-mono text-[15px]`}
-                    rows={8}
-                    spellCheck={false}
-                    value={partTexts[i.id] ?? ''}
-                    onChange={(e) => setPartTexts((x) => ({ ...x, [i.id]: e.target.value }))}
-                  />
-                </Field>
-                <PdfScope instrumentId={i.id} label={i.name} kept={keptPdfs} added={newPdfs} setKept={setKeptPdfs} setAdded={setNewPdfs} onAdd={addPdfs} />
-              </div>
-            ))}
-          </FieldGroup>
-        )}
-
-        <FieldGroup legend={t('field.pdf')}>
-          <PdfScope instrumentId={undefined} kept={keptPdfs} added={newPdfs} setKept={setKeptPdfs} setAdded={setNewPdfs} onAdd={addPdfs} />
-        </FieldGroup>
-
+        <section className={card}>
+        <h2 className={cardTitle}>{t('song.section.more')}</h2>
         <FieldGroup legend={t('field.tags')}>
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface p-2">
             {tags.map((tag) => (
@@ -429,10 +386,11 @@ function SongForm({
         <Field label={t('field.notes')}>
           <textarea className={textareaClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
+        </section>
 
         {message && <p role="alert" className="rounded-md border border-lei/40 bg-lei/5 p-3 text-sm font-semibold text-lei">{message}</p>}
 
-        <div className="flex flex-wrap gap-3 pt-2">
+        <div className="sticky bottom-0 -mx-4 flex flex-wrap gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <Button type="submit" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</Button>
           <Button variant="secondary" onClick={goBack}>{t('common.cancel')}</Button>
           {initial && (
@@ -440,69 +398,6 @@ function SongForm({
           )}
         </div>
       </form>
-      {convertOpen && (
-        <ConvertDialog
-          existing={chordpro}
-          onApply={(text) => {
-            setChordpro(text);
-            setConvertOpen(false);
-          }}
-          onClose={() => setConvertOpen(false)}
-        />
-      )}
     </main>
-  );
-}
-
-/** The PDFs of one part (the plain text when `instrumentId` is undefined): the list, "remove", and a picker that takes several files. */
-function PdfScope({
-  instrumentId, label, kept, added, setKept, setAdded, onAdd,
-}: {
-  instrumentId: string | undefined;
-  label?: string;
-  kept: PdfInfo[];
-  added: PendingPdf[];
-  setKept: (list: PdfInfo[]) => void;
-  setAdded: (list: PendingPdf[]) => void;
-  onAdd: (files: FileList | null, instrumentId: string | undefined) => void;
-}) {
-  const t = useT();
-  const mine = [
-    ...kept.filter((f) => f.instrumentId === instrumentId).map((f) => ({ id: f.id, name: f.name, size: f.size, existing: true })),
-    ...added.filter((f) => f.instrumentId === instrumentId).map((f) => ({ id: f.key, name: f.file.name, size: f.file.size, existing: false })),
-  ];
-  return (
-    <div className="space-y-2">
-      {label && <p className="text-sm font-semibold">{t('pdf.of', { name: label })}</p>}
-      {mine.length === 0 && <p className="text-sm text-soft">{t('pdf.none')}</p>}
-      <ul className="space-y-1">
-        {mine.map((f) => (
-          <li key={f.id} className="flex items-center gap-3">
-            <span className="min-w-0 flex-1 truncate text-sm text-soft">{f.name} · {formatBytes(f.size)}</span>
-            <Button
-              variant="secondary"
-              aria-label={`${t('common.remove')} ${f.name}`}
-              onClick={() => (f.existing ? setKept(kept.filter((k) => k.id !== f.id)) : setAdded(added.filter((a) => a.key !== f.id)))}
-            >
-              {t('common.remove')}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <label className={`${buttonClass('secondary')} cursor-pointer focus-within:ring-2 focus-within:ring-io`}>
-        <input
-          type="file"
-          accept="application/pdf"
-          multiple
-          className="sr-only"
-          aria-label={label ? t('pdf.addFor', { name: label }) : t('pdf.addText')}
-          onChange={(e) => {
-            onAdd(e.target.files, instrumentId);
-            e.target.value = '';
-          }}
-        />
-        {t('pdf.add')}
-      </label>
-    </div>
   );
 }

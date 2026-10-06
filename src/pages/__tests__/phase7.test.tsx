@@ -93,10 +93,12 @@ describe('PDFs of a part', () => {
     const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await screen.findByLabelText('Title');
-    fireEvent.click(screen.getByRole('button', { name: 'Bass' }));
+    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } }); // opens the Bass tab
     fireEvent.change(await screen.findByLabelText('Add PDF for Bass'), { target: { files: [pdfFile('bass1.pdf'), pdfFile('bass2.pdf')] } });
-    fireEvent.change(screen.getByLabelText('Add PDF for the text'), { target: { files: [pdfFile('text.pdf')] } });
     expect(await screen.findByText(/bass2\.pdf/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Text' }));
+    fireEvent.change(await screen.findByLabelText('Add PDF for the text'), { target: { files: [pdfFile('text.pdf')] } });
+    expect(await screen.findByText(/text\.pdf/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(async () => expect(await songAttachments(store, song.id)).toHaveLength(3));
@@ -150,7 +152,7 @@ describe('parts of a song', () => {
     const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await screen.findByLabelText('Title');
-    fireEvent.click(screen.getByRole('button', { name: 'Bass' }));
+    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } });
     fireEvent.change(await screen.findByLabelText('Chart for Bass (ChordPro)'), { target: { value: '[E]walk [A]down' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -207,5 +209,26 @@ describe('parts of a song', () => {
     delete old.data.parts;
     const loaded = parseBackup(JSON.stringify(old));
     expect(loaded.ok && loaded.snapshot.instruments).toEqual([]);
+  });
+});
+
+describe('the song form, part by part', () => {
+  it('keeps one tab per part, each with its own text, and removes a part on request', async () => {
+    const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
+    const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
+    await screen.findByLabelText('Title');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text']);
+    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } });
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text', 'Bass']);
+    fireEvent.change(await screen.findByLabelText('Chart for Bass (ChordPro)'), { target: { value: '{start_of_tab}\ne|--0--|\n{end_of_tab}' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Text' }));
+    expect(screen.queryByLabelText('Chart for Bass (ChordPro)')).toBeNull(); // only the open part is on screen
+    fireEvent.click(screen.getByRole('tab', { name: 'Bass' }));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the Bass part' }));
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text']);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () => expect((await store.songs.get(song.id))!.instrumentIds).toEqual([]));
+    expect(await store.parts.listBy('songId', song.id)).toEqual([]);
   });
 });
