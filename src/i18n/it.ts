@@ -154,6 +154,7 @@ export const it: Record<MessageKey, string> = {
   'notice.backupDays': 'L’ultimo backup risale a {n} giorni fa.',
   'notice.backupNow': 'Fai backup',
   'notice.later': 'Più tardi',
+  'notice.more': 'altri {n}',
   'notice.dismiss': 'Chiudi',
   'settings.appearance': 'Aspetto',
   'settings.theme': 'Tema',
