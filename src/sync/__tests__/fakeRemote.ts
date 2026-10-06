@@ -5,7 +5,10 @@ import { RemoteError, type RemoteClient } from '../engine';
 export class FakeRemote implements RemoteClient {
   readonly rows = new Map<string, SyncRecord>(); // key: band/kind/id
   private seq = 0;
+  readonly blobs = new Map<string, { data: ArrayBuffer; mimeType: string }>(); // key: band/id
   failWith: RemoteError | null = null;
+  uploads = 0;
+  downloads = 0;
   pushes = 0;
   beforePush: (() => Promise<void>) | null = null;
   private readonly subscribers = new Set<{ bandId: string; onRecord: (r: SyncRecord) => void; onState: (s: 'live' | 'down') => void }>();
@@ -30,6 +33,22 @@ export class FakeRemote implements RemoteClient {
       .filter((r) => r.bandId === bandId && r.seq! > afterSeq)
       .sort((a, b) => a.seq! - b.seq!)
       .slice(0, limit);
+  }
+
+  async uploadBlob(bandId: string, id: string, data: ArrayBuffer, mimeType: string): Promise<void> {
+    if (this.failWith) throw this.failWith;
+    this.uploads++;
+    this.blobs.set(`${bandId}/${id}`, { data, mimeType });
+  }
+
+  async downloadBlob(bandId: string, id: string): Promise<ArrayBuffer | null> {
+    if (this.failWith) throw this.failWith;
+    this.downloads++;
+    return this.blobs.get(`${bandId}/${id}`)?.data ?? null;
+  }
+
+  async removeBlob(bandId: string, id: string): Promise<void> {
+    this.blobs.delete(`${bandId}/${id}`);
   }
 
   subscribe(bandId: string, onRecord: (r: SyncRecord) => void, onState: (s: 'live' | 'down') => void) {

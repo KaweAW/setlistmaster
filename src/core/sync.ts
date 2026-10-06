@@ -1,5 +1,5 @@
 /** Kinds of record that travel to the cloud (the band itself and its members are managed by the server). */
-export const SYNC_KINDS = ['performer', 'tuning', 'instrument', 'part', 'song', 'setlist', 'block', 'item'] as const;
+export const SYNC_KINDS = ['performer', 'tuning', 'instrument', 'part', 'attachment', 'song', 'setlist', 'block', 'item'] as const;
 export type SyncKind = (typeof SYNC_KINDS)[number];
 
 /** One local record as it is sent to, or received from, the cloud. `data` is the whole record. */

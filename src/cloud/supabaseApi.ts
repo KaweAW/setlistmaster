@@ -57,6 +57,23 @@ async function connect(): Promise<SupabaseClient> {
   });
 }
 
+const PDF_BUCKET = 'pdfs';
+
+interface StorageErrorLike { message?: string; statusCode?: string | number; status?: number }
+
+const isNotFound = (e: StorageErrorLike) => String(e.statusCode ?? e.status) === '404' || /not.?found/i.test(e.message ?? '');
+
+/** Storage failures as the engine understands them: no connection, not allowed, or something else. */
+function asStorageError(e: unknown): RemoteError {
+  const err = (e ?? {}) as StorageErrorLike;
+  const code = String(err.statusCode ?? err.status ?? '');
+  const message = err.message ?? String(e);
+  if (code === '401' || code === '403' || /row-level security|not authorized|unauthorized/i.test(message)) return new RemoteError('forbidden', message);
+  // A request that never got an answer (offline, DNS, blocked) has no status code at all.
+  if (!code || /fetch|network|load failed|failed to fetch/i.test(message)) return new RemoteError('network', message);
+  return new RemoteError('other', message);
+}
+
 export function createSupabaseApi(): CloudApi {
   let clientPromise: Promise<SupabaseClient> | null = null;
   const client = () => (clientPromise ??= connect());
@@ -104,6 +121,25 @@ export function createSupabaseApi(): CloudApi {
       } catch (e) {
         throw asRemoteError(e as DbError);
       }
+    },
+    async uploadBlob(bandId, id, data, mimeType) {
+      const db = await client().catch((e: unknown) => { throw asStorageError(e); });
+      const { error } = await db.storage.from(PDF_BUCKET).upload(`${bandId}/${id}`, new Blob([data], { type: mimeType }), { upsert: true, contentType: mimeType });
+      if (error) throw asStorageError(error);
+    },
+    async downloadBlob(bandId, id) {
+      const db = await client().catch((e: unknown) => { throw asStorageError(e); });
+      const { data, error } = await db.storage.from(PDF_BUCKET).download(`${bandId}/${id}`);
+      if (error) {
+        if (isNotFound(error)) return null;
+        throw asStorageError(error);
+      }
+      return data.arrayBuffer();
+    },
+    async removeBlob(bandId, id) {
+      const db = await client().catch((e: unknown) => { throw asStorageError(e); });
+      const { error } = await db.storage.from(PDF_BUCKET).remove([`${bandId}/${id}`]);
+      if (error) throw asStorageError(error);
     },
     subscribe(bandId, onRecord, onState) {
       let stopped = false;

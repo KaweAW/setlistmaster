@@ -213,3 +213,48 @@ describe('instruments', () => {
     expect((await rows<{ i: string | null }>(carol, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBeNull();
   });
 });
+
+describe('PDF storage', () => {
+  const put = (user: User | null, path: string) =>
+    rows(user, "insert into storage.objects (bucket_id, name) values ('pdfs', $1)", [path]);
+  const names = async (user: User | null) => (await rows<{ name: string }>(user, "select name from storage.objects where bucket_id = 'pdfs' order by name")).map((r) => r.name);
+
+  it('is a private, PDF-only bucket with a size limit', async () => {
+    const bucket = (await db.query<{ public: boolean; file_size_limit: string; allowed_mime_types: string[] }>(
+      "select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'pdfs'",
+    )).rows[0];
+    expect(bucket).toMatchObject({ public: false, allowed_mime_types: ['application/pdf'] });
+    expect(Number(bucket!.file_size_limit)).toBe(25 * 1024 * 1024);
+  });
+  it('lets creator and editors add, and every member read, the band\'s PDFs', async () => {
+    await join(bob, 'editor');
+    await join(carol, 'viewer');
+    await put(alice, `${bandId}/${await uuid(db)}`);
+    await put(bob, `${bandId}/${await uuid(db)}`);
+    expect(await names(carol)).toHaveLength(2); // a viewer reads them
+    await expect(put(carol, `${bandId}/${await uuid(db)}`)).rejects.toThrow(); // but cannot add
+  });
+  it('keeps one band\'s PDFs from every other band, and from outsiders', async () => {
+    await put(alice, `${bandId}/${await uuid(db)}`);
+    const other = await uuid(db);
+    await rows(bob, 'select public.create_band($1, $2)', [other, 'Other']);
+    expect(await names(bob)).toEqual([]); // bob is not in alice's band
+    await expect(put(bob, `${bandId}/${await uuid(db)}`)).rejects.toThrow(); // and cannot write into it
+    await put(bob, `${other}/${await uuid(db)}`);
+    expect(await names(alice)).toHaveLength(1);
+    await expect(names(null)).rejects.toThrow(); // signed out: no access at all
+    await expect(put(alice, 'not-a-band/file')).rejects.toThrow(); // a path that is not a band id
+  });
+  it('lets only creator and editors replace or delete, and a removed member loses access', async () => {
+    await join(bob, 'editor');
+    await join(carol, 'viewer');
+    const path = `${bandId}/${await uuid(db)}`;
+    await put(alice, path);
+    expect(await rows(carol, "delete from storage.objects where name = $1 returning 1", [path])).toEqual([]);
+    expect(await rows(carol, "update storage.objects set name = name where name = $1 returning 1", [path])).toEqual([]);
+    expect(await rows(bob, "update storage.objects set name = name where name = $1 returning 1", [path])).toHaveLength(1);
+    await rows(alice, 'select public.remove_member($1, $2)', [bandId, bob.id]);
+    expect(await names(bob)).toEqual([]);
+    expect(await rows(alice, "delete from storage.objects where name = $1 returning 1", [path])).toHaveLength(1);
+  });
+});

@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { SyncKind } from '../../core/sync';
 import type {
+  Attachment,
   Band,
   Block,
   Instrument,
@@ -37,6 +38,7 @@ export class ScalettaDb extends Dexie {
   tunings!: EntityTable<Tuning, 'id'>;
   instruments!: EntityTable<Instrument, 'id'>;
   parts!: EntityTable<Part, 'id'>;
+  attachments!: EntityTable<Attachment, 'id'>;
   songs!: EntityTable<Song, 'id'>;
   setlists!: EntityTable<Setlist, 'id'>;
   blocks!: EntityTable<Block, 'id'>;
@@ -71,6 +73,24 @@ export class ScalettaDb extends Dexie {
         const songs = await tx.table('songs').toArray();
         for (const song of songs as { id: string; pdfBlobId?: string }[]) {
           if (song.pdfBlobId) await tx.table('files').update(song.pdfBlobId, { songId: song.id });
+        }
+      });
+    // v6 (phase 8): a PDF is described by a synced `attachment` record; the bytes stay in `files`. Every PDF that already
+    // belongs to a song gets its attachment (same id), and is queued for the cloud if its band is synced.
+    this.version(6)
+      .stores({ attachments: 'id, bandId, songId' })
+      .upgrade(async (tx) => {
+        const linked = new Set((await tx.table('syncBands').toArray()).map((r: { bandId: string }) => r.bandId));
+        const now = Date.now();
+        for (const f of (await tx.table('files').toArray()) as StoredFile[]) {
+          if (!f.songId) continue;
+          await tx.table('attachments').put({
+            id: f.id, bandId: f.bandId, songId: f.songId, instrumentId: f.instrumentId, name: f.name,
+            mimeType: f.mimeType || 'application/pdf', size: f.size, createdAt: f.createdAt, updatedAt: now,
+          });
+          if (linked.has(f.bandId)) {
+            await tx.table('outbox').put({ key: `attachment:${f.id}`, bandId: f.bandId, kind: 'attachment', id: f.id, updatedAt: now });
+          }
         }
       });
   }

@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import {
-  bandSchema, blockSchema, instrumentSchema, memberSchema, partSchema, performerSchema, setlistItemSchema, setlistSchema, songSchema, tuningSchema,
+  attachmentSchema, bandSchema, blockSchema, instrumentSchema, memberSchema, partSchema, performerSchema, setlistItemSchema, setlistSchema, songSchema, tuningSchema,
 } from './schemas';
 import type { StoreSnapshot } from './types';
 
 export const BACKUP_FORMAT = 'scaletta-backup';
 /** Bump when the file layout changes; older versions must keep loading (see parseBackup). */
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
 /** PDFs travel inside the JSON as base64, so a single file holds everything. */
-const attachmentSchema = z.object({
+const fileEntrySchema = z.object({
   id: z.string().min(1),
   bandId: z.string().min(1),
   name: z.string(),
@@ -32,11 +32,12 @@ const backupSchema = z.object({
     tunings: z.array(tuningSchema).default([]),
     instruments: z.array(instrumentSchema).default([]),
     parts: z.array(partSchema).default([]),
+    attachments: z.array(attachmentSchema).default([]),
     songs: z.array(songSchema).default([]),
     setlists: z.array(setlistSchema).default([]),
     blocks: z.array(blockSchema).default([]),
     items: z.array(setlistItemSchema).default([]),
-    files: z.array(attachmentSchema).default([]),
+    files: z.array(fileEntrySchema).default([]),
   }),
 });
 
@@ -65,7 +66,11 @@ export function createBackup(snapshot: StoreSnapshot, exportedAt: number): Backu
     exportedAt,
     data: {
       ...records,
-      files: files.map(({ data, ...meta }) => ({ ...meta, dataBase64: bytesToBase64(data) })),
+      files: files.map((f) => ({
+        id: f.id, bandId: f.bandId, name: f.name, mimeType: f.mimeType, size: f.size, createdAt: f.createdAt,
+        ...(f.songId ? { songId: f.songId } : {}), ...(f.instrumentId ? { instrumentId: f.instrumentId } : {}),
+        dataBase64: bytesToBase64(f.data),
+      })),
     },
   };
 }
@@ -120,14 +125,20 @@ export function parseBackup(text: string): BackupParseResult {
   try {
     // Backups from before PDFs belonged to songs: the song that points at a file owns it.
     const owner = new Map(records.songs.flatMap((s) => (s.pdfBlobId ? [[s.pdfBlobId, s.id] as const] : [])));
-    snapshot = {
-      ...records,
-      files: files.map(({ dataBase64, ...meta }) => ({
-        ...meta,
-        songId: meta.songId ?? owner.get(meta.id),
-        data: base64ToBytes(dataBase64),
-      })),
-    };
+    const restored = files.map(({ dataBase64, ...meta }) => ({
+      ...meta,
+      songId: meta.songId ?? owner.get(meta.id),
+      data: base64ToBytes(dataBase64),
+    }));
+    // Backups from before PDFs had a synced description: make one for each PDF that belongs to a song.
+    const described = new Set(records.attachments.map((a) => a.id));
+    const missing = restored
+      .filter((f) => f.songId && !described.has(f.id))
+      .map((f) => attachmentSchema.parse({
+        id: f.id, bandId: f.bandId, songId: f.songId, instrumentId: f.instrumentId, name: f.name || 'PDF',
+        mimeType: f.mimeType, size: f.size, createdAt: f.createdAt, updatedAt: f.createdAt,
+      }));
+    snapshot = { ...records, attachments: [...records.attachments, ...missing], files: restored };
   } catch {
     return { ok: false, error: 'invalid-data' }; // a PDF that is not valid base64
   }

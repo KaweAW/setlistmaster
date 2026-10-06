@@ -72,7 +72,7 @@ HTTPS is required for the PWA features, and every unknown path must return `inde
 Without a cloud project everything works on one device, and the sharing section simply says it is not set up.
 To enable it you need a free [Supabase](https://supabase.com) project:
 
-1. In the Supabase **SQL editor**, run `supabase/migrations/0001_cloud.sql` once, then `0002_instruments.sql` (new installs run both, in that order; if you already ran the first, run only the second).
+1. In the Supabase **SQL editor**, run the files in `supabase/migrations/` once each, in order: `0001_cloud.sql`, `0002_instruments.sql`, `0003_pdf_storage.sql` (if you already ran some, run only the ones after the last you ran). The third creates the private `pdfs` storage bucket and its access rules; nothing to set up by hand in Storage.
 2. **Authentication > Providers**: keep Email on (optionally turn off "Confirm email").
    **Authentication > URL configuration**: set Site URL to the address of the published app.
 3. Copy the project URL and the public key (Project settings > API) into `VITE_SUPABASE_URL` and
@@ -84,8 +84,10 @@ To enable it you need a free [Supabase](https://supabase.com) project:
 Roles: **creator** (the only one who invites, changes roles, removes members and revokes invitations),
 **editor** (changes songs and setlists), **viewer** (reads and plays; editing buttons are hidden).
 
-What syncs: songs (with chords and notes), setlists, blocks, entries, singers and tunings. **PDFs do not sync yet**:
-they stay on the device where they were added. Edits are saved locally first and sent when there is a connection;
+What syncs: songs (with chords and notes), instruments and parts, setlists, blocks, entries, singers, tunings and **PDFs**
+(each PDF is stored privately in Supabase Storage, up to 25 MB per file; every device downloads the ones it is missing,
+so charts still open offline on stage, and the song page has a "Download now" button for one that has not arrived).
+Edits are saved locally first and sent when there is a connection;
 if two people edit the same record, the later edit wins. The access rules live in the database (row-level security)
 and are tested on a real Postgres (PGlite), including that a viewer or a stranger cannot read or write anything.
 

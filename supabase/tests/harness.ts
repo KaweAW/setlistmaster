@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
 // Every migration, in order: the database under test is the one a real project ends up with.
-const migrations = ['0001_cloud.sql', '0002_instruments.sql'].map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+const migrations = ['0001_cloud.sql', '0002_instruments.sql', '0003_pdf_storage.sql'].map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 
 export interface User {
   id: string;
@@ -24,6 +24,13 @@ export async function newDb() {
     grant usage on schema auth to authenticated;
     grant usage on schema public to anon, authenticated;
     create publication supabase_realtime;
+    -- The part of Supabase Storage the policies rely on: buckets, and objects with row level security.
+    create schema storage;
+    create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+    create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id), name text);
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to authenticated;
+    grant select, insert, update, delete on storage.objects to authenticated;
   `);
   for (const migration of migrations) await db.exec(migration);
   return db;

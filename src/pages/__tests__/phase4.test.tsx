@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { addAttachment } from '../../data/attachments';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -117,7 +118,7 @@ describe('song page', () => {
     const { store, band, song } = await setup(({ songId }) => `/song/${songId}`);
     await screen.findByRole('heading', { name: 'Fortunate Son' });
     cleanup();
-    await store.files.put({ id: 'pdf1', bandId: band.id, name: 'a.pdf', mimeType: 'application/pdf', size: 4, data: new Uint8Array([37, 80, 68, 70]).buffer, createdAt: 1, songId: song.id });
+    await addAttachment(store, { id: 'pdf1', bandId: band.id, songId: song.id, name: 'a.pdf', data: new Uint8Array([37, 80, 68, 70]).buffer });
     render(
       <MemoryRouter initialEntries={[`/song/${song.id}`]}>
         <DataProvider store={store}><AppRoutes /></DataProvider>
