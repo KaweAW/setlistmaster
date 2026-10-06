@@ -7,6 +7,7 @@ import { createBackup, parseBackup } from '../../core/backup';
 import { bootstrap } from '../../data/bootstrap';
 import { DataProvider } from '../../data/DataProvider';
 import { createDexieStore } from '../../data/dexie/dexieRepository';
+import { addAttachment, songAttachments } from '../../data/attachments';
 import { addDefaultInstruments, partId } from '../../data/instruments';
 import { useUiStore } from '../../state/uiStore';
 
@@ -98,8 +99,8 @@ describe('PDFs of a part', () => {
     expect(await screen.findByText(/bass2\.pdf/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(async () => expect(await store.files.listBySong(song.id)).toHaveLength(3));
-    const files = await store.files.listBySong(song.id);
+    await waitFor(async () => expect(await songAttachments(store, song.id)).toHaveLength(3));
+    const files = await songAttachments(store, song.id);
     expect(files.filter((f) => f.instrumentId === bass.id).map((f) => f.name).sort()).toEqual(['bass1.pdf', 'bass2.pdf']);
     expect(files.filter((f) => f.instrumentId === undefined).map((f) => f.name)).toEqual(['text.pdf']);
   });
@@ -111,7 +112,7 @@ describe('PDFs of a part', () => {
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await store.songs.update(song.id, { instrumentIds: [bass.id] });
     const put = (id: string, name: string, instrumentId?: string) =>
-      store.files.put({ id, bandId: band.id, songId: song.id, instrumentId, name, mimeType: 'application/pdf', size: 4, data: new Uint8Array([37]).buffer, createdAt: Number(id.slice(1)) });
+      addAttachment(store, { id, bandId: band.id, songId: song.id, instrumentId, name, data: new Uint8Array([37]).buffer });
     await put('f1', 'text.pdf');
     await put('f2', 'bass-a.pdf', bass.id);
     await put('f3', 'bass-b.pdf', bass.id);

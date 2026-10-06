@@ -10,6 +10,7 @@ const snapshot = (): StoreSnapshot => ({
   members: [],
   performers: [{ ...base, id: 'p1', name: 'Julie', color: '#C4245C', symbol: '♀' }],
   tunings: [{ ...base, id: 't1', name: 'Standard', notes: 'E A D G B E', isStandard: true }],
+  attachments: [],
   instruments: [{ ...base, id: 'n1', name: 'Bass', order: 2 }],
   parts: [{ ...base, id: 'r1', songId: 's1', instrumentId: 'n1', chordpro: '[Am]walk', notes: '' }],
   songs: [{

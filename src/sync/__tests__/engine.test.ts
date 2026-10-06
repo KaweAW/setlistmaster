@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bootstrap } from '../../data/bootstrap';
 import { createDexieStore } from '../../data/dexie/dexieRepository';
+import { addAttachment, removeAttachment } from '../../data/attachments';
 import { RemoteError, SyncEngine, type BandSyncStatus } from '../engine';
 import { FakeRemote } from './fakeRemote';
 
@@ -208,5 +209,91 @@ describe('live changes', () => {
     await b.store.songs.update((await song(b, 'Creep')).id, { notes: 'now local' });
     expect(await b.store.sync.pendingCount(bandId)).toBe(0);
     expect(await b.store.sync.linkedBands()).toEqual([]);
+  });
+});
+
+describe('PDFs', () => {
+  const bytes = (...n: number[]) => new Uint8Array(n).buffer;
+  const attach = async (d: typeof a, title: string, data = bytes(37, 80, 68, 70)) =>
+    addAttachment(d.store, { bandId, songId: (await song(d, title)).id, name: 'chart.pdf', data });
+
+  it('goes up with its description, and the other device gets both', async () => {
+    await shareAndJoin();
+    const att = await attach(a, 'Zombie');
+    await a.engine.syncBand(bandId);
+    expect(remote.blobs.get(`${bandId}/${att.id}`)?.data.byteLength).toBe(4);
+    expect((await a.store.files.get(att.id))?.uploaded).toBe(true);
+
+    await b.engine.syncBand(bandId);
+    expect((await b.store.attachments.get(att.id))?.name).toBe('chart.pdf');
+    expect(new Uint8Array((await b.store.files.get(att.id))!.data)).toEqual(new Uint8Array([37, 80, 68, 70]));
+    expect(b.applied).toHaveBeenCalled();
+  });
+
+  it('sends each PDF once, and fetches each once', async () => {
+    await shareAndJoin();
+    await attach(a, 'Zombie');
+    await a.engine.syncBand(bandId);
+    await a.engine.syncBand(bandId);
+    expect(remote.uploads).toBe(1);
+    await b.engine.syncBand(bandId);
+    await b.engine.syncBand(bandId);
+    expect(remote.downloads).toBe(1);
+  });
+
+  it('waits when the description arrived but the bytes have not, and gets them later', async () => {
+    await shareAndJoin();
+    const att = await attach(a, 'Zombie');
+    // A's records go up but its upload fails (network), so B sees a description without bytes.
+    const realUpload = remote.uploadBlob.bind(remote);
+    remote.uploadBlob = async () => { throw new RemoteError('network', 'down'); };
+    await a.engine.syncBand(bandId);
+    expect(last(a).state).toBe('offline');
+    await b.engine.syncBand(bandId);
+    expect(await b.store.attachments.get(att.id)).toBeTruthy();
+    expect(await b.store.files.get(att.id)).toBeUndefined();
+    expect(await b.store.sync.missingBlobs(bandId)).toHaveLength(1);
+
+    remote.uploadBlob = realUpload;
+    await a.engine.syncBand(bandId);
+    await b.engine.syncBand(bandId);
+    expect(await b.store.files.get(att.id)).toBeTruthy();
+    expect(await b.store.sync.missingBlobs(bandId)).toHaveLength(0);
+  });
+
+  it('is removed everywhere, bytes included', async () => {
+    await shareAndJoin();
+    const att = await attach(a, 'Zombie');
+    await a.engine.syncBand(bandId);
+    await b.engine.syncBand(bandId);
+    a.clock.t += 10;
+    await removeAttachment(a.store, att.id);
+    await a.engine.syncBand(bandId);
+    expect(remote.blobs.has(`${bandId}/${att.id}`)).toBe(false);
+    await b.engine.syncBand(bandId);
+    expect(await b.store.attachments.get(att.id)).toBeUndefined();
+    expect(await b.store.files.get(att.id)).toBeUndefined();
+  });
+
+  it('is not sent by a viewer', async () => {
+    const viewer = device(remote);
+    viewer.engine = new SyncEngine(viewer.store.sync, remote, { onApplied: viewer.applied, onStatus: () => {}, canWrite: () => false });
+    const band = await bootstrap(a.store);
+    bandId = band.id;
+    await viewer.store.bands.put(band);
+    await viewer.store.sync.linkBand(bandId);
+    await viewer.store.attachments.create({ bandId, songId: 's', name: 'x.pdf', mimeType: 'application/pdf', size: 1 }).then((x) => viewer.store.files.put({ id: x.id, bandId, name: 'x.pdf', mimeType: 'application/pdf', size: 1, createdAt: 1, data: bytes(1) }));
+    await viewer.engine.syncBand(bandId);
+    expect(remote.uploads).toBe(0);
+  });
+
+  it('goes up for a band that was already full of PDFs when it was shared', async () => {
+    const band = await bootstrap(a.store);
+    bandId = band.id;
+    const att = await attach(a, 'Zombie');
+    await a.store.sync.linkBand(bandId, { upload: true });
+    await a.engine.syncBand(bandId);
+    expect(remote.rows.has(`${bandId}/attachment/${att.id}`)).toBe(true);
+    expect(remote.blobs.has(`${bandId}/${att.id}`)).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { accidentalsForKey, inferKey, transposeKey } from '../core/chords';
 import { chartChords, parseChordPro } from '../core/chordpro';
 import { effectivePerformerIds, effectiveTuningId } from '../core/legend';
 import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps';
-import type { Instrument, Part, Performer, SetlistItem, Song, StoredFile, Tuning } from '../core/types';
+import type { Attachment, Instrument, Part, Performer, SetlistItem, Song, Tuning } from '../core/types';
 import { formatDuration } from '../core/format';
 import { ChordChart } from '../components/ChordChart';
 import { PerformerBadge } from '../components/PerformerBadge';
@@ -14,7 +14,8 @@ import { SongToolbar } from '../components/SongToolbar';
 import { TuningChip } from '../components/TuningChip';
 import { buildLookups, TransitionLine } from '../components/setlistParts';
 import { buttonClass } from '../components/ui';
-import { useCanEdit } from '../cloud/CloudProvider';
+import { useCanEdit, useCloud } from '../cloud/CloudProvider';
+import { songAttachments } from '../data/attachments';
 import { useData } from '../data/DataProvider';
 import { loadTree } from '../data/setlistService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
@@ -48,7 +49,7 @@ function SongPageInner({ songId, setlistId, itemId }: { songId?: string; setlist
     const tree = setlistId ? await loadTree(store, setlistId) : undefined;
     const item = tree?.items.find((i) => i.id === itemId);
     const song = songs.find((s) => s.id === (item?.songId ?? songId));
-    const pdfs = song ? await store.files.listBySong(song.id) : [];
+    const pdfs = song ? await songAttachments(store, song.id) : [];
     return { songs, performers, tunings, instruments, parts, tree, item, song, pdfs };
   }, [store, band.id, setlistId, itemId, songId]);
 
@@ -77,7 +78,7 @@ function SongView({
   parts: Part[];
   tree: SetlistTree | undefined;
   item: SetlistItem | undefined;
-  pdfs: StoredFile[];
+  pdfs: Attachment[];
   setlistId: string | undefined;
 }) {
   const t = useT();
@@ -292,7 +293,7 @@ function SongView({
         )}
         {mode === 'pdf' && pdf && (
           <Suspense fallback={<p className="py-6 text-center text-soft">{t('chart.loadingPdf')}</p>}>
-            <PdfViewer key={pdf.id} data={pdf.data} />
+            <PdfBody key={pdf.id} id={pdf.id} />
           </Suspense>
         )}
         {!hasChart && !pdf && (
@@ -328,6 +329,44 @@ function SongView({
         scrollLevel={scrollLevel}
         onScrollLevel={setScrollLevel}
       />
+    </div>
+  );
+}
+
+/** One PDF: its bytes are read from this device; if a bandmate added it and it has not arrived yet, say so and offer to fetch it. */
+function PdfBody({ id }: { id: string }) {
+  const t = useT();
+  const { store, band } = useData();
+  const { configured, syncNow } = useCloud();
+  const { data, loading, reload } = useQuery(async () => (await store.files.get(id))?.data ?? null, [store, id]);
+  const [fetching, setFetching] = useState(false);
+  if (loading) return <p className="py-6 text-center text-soft">{t('chart.loadingPdf')}</p>;
+  if (data) {
+    return (
+      <Suspense fallback={<p className="py-6 text-center text-soft">{t('chart.loadingPdf')}</p>}>
+        <PdfViewer data={data} />
+      </Suspense>
+    );
+  }
+  return (
+    <div className="py-8 text-center">
+      <p className="mb-3 text-soft">{t('chart.pdfMissing')}</p>
+      {configured && (
+        <button
+          type="button"
+          disabled={fetching}
+          className={buttonClass('secondary')}
+          onClick={() => {
+            setFetching(true);
+            void syncNow(band.id).finally(() => {
+              setFetching(false);
+              reload();
+            });
+          }}
+        >
+          {fetching ? t('chart.pdfFetching') : t('chart.pdfFetch')}
+        </button>
+      )}
     </div>
   );
 }

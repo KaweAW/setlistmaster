@@ -76,6 +76,16 @@ export const partSchema = z.object({
   notes: z.string().default(''),
 });
 
+/** A PDF attached to a song, for the plain text (no `instrumentId`) or for one instrument. The bytes live in `files` (and in cloud storage). */
+export const attachmentSchema = z.object({
+  ...scopedShape,
+  songId: id,
+  instrumentId: id.optional(),
+  name: z.string().min(1),
+  mimeType: z.string().default('application/pdf'),
+  size: z.number().int().nonnegative(),
+});
+
 export const setlistSchema = z.object({
   ...scopedShape,
   title: z.string().min(1),

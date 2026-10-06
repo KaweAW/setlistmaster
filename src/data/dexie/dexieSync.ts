@@ -1,7 +1,7 @@
 import type { EntityTable } from 'dexie';
 import * as s from '../../core/schemas';
 import { SYNC_KINDS, shouldApplyRemote, type OutboxEntry, type SyncKind, type SyncRecord } from '../../core/sync';
-import type { BaseEntity } from '../../core/types';
+import type { Attachment, BaseEntity, StoredFile } from '../../core/types';
 import type { SyncStore } from '../repository';
 import type { ScalettaDb } from './db';
 
@@ -12,6 +12,7 @@ const SCHEMAS = {
   tuning: s.tuningSchema,
   instrument: s.instrumentSchema,
   part: s.partSchema,
+  attachment: s.attachmentSchema,
   song: s.songSchema,
   setlist: s.setlistSchema,
   block: s.blockSchema,
@@ -29,7 +30,7 @@ export class DexieSyncStore implements SyncStore {
 
   private table(kind: SyncKind): EntityTable<Row, 'id'> {
     const tables = {
-      performer: this.db.performers, tuning: this.db.tunings, instrument: this.db.instruments, part: this.db.parts, song: this.db.songs,
+      performer: this.db.performers, tuning: this.db.tunings, instrument: this.db.instruments, part: this.db.parts, attachment: this.db.attachments, song: this.db.songs,
       setlist: this.db.setlists, block: this.db.blocks, item: this.db.items,
     };
     return tables[kind] as unknown as EntityTable<Row, 'id'>;
@@ -114,7 +115,7 @@ export class DexieSyncStore implements SyncStore {
     await this.ready;
     const { db } = this;
     let applied = 0;
-    await db.transaction('rw', [db.performers, db.tunings, db.instruments, db.parts, db.songs, db.setlists, db.blocks, db.items, db.outbox], async () => {
+    await db.transaction('rw', [db.performers, db.tunings, db.instruments, db.parts, db.attachments, db.files, db.songs, db.setlists, db.blocks, db.items, db.outbox], async () => {
       for (const record of records) {
         if (!this.linked.has(record.bandId)) continue; // only bands we sync
         const parsed = SCHEMAS[record.kind].safeParse(record.data);
@@ -124,6 +125,7 @@ export class DexieSyncStore implements SyncStore {
         if (local && (local as { bandId: string }).bandId !== record.bandId) continue; // an id from another band: never move it
         if (!shouldApplyRemote(local, record)) continue;
         await table.put(parsed.data as unknown as Row);
+        if (record.kind === 'attachment' && record.deletedAt !== null) await db.files.delete(record.id); // its bytes are no use any more
         // The remote version won: our older queued edit of the same record is obsolete.
         const queued = await db.outbox.get(`${record.kind}:${record.id}`);
         if (queued && queued.updatedAt <= record.updatedAt) await db.outbox.delete(queued.key);
@@ -131,6 +133,37 @@ export class DexieSyncStore implements SyncStore {
       }
     });
     return applied;
+  }
+
+  async pendingBlobs(bandId: string): Promise<StoredFile[]> {
+    await this.ready;
+    if (!this.linked.has(bandId)) return [];
+    const files = (await this.db.files.where('bandId').equals(bandId).toArray()).filter((f) => f.uploaded !== true);
+    const alive: StoredFile[] = [];
+    for (const f of files) {
+      const attachment = await this.db.attachments.get(f.id);
+      if (attachment && attachment.deletedAt === undefined) alive.push(f);
+    }
+    return alive;
+  }
+
+  async markBlobUploaded(id: string): Promise<void> {
+    await this.db.files.update(id, { uploaded: true });
+  }
+
+  async missingBlobs(bandId: string): Promise<Attachment[]> {
+    await this.ready;
+    if (!this.linked.has(bandId)) return [];
+    const alive = (await this.db.attachments.where('bandId').equals(bandId).toArray()).filter((a) => a.deletedAt === undefined);
+    const have = new Set((await this.db.files.where('bandId').equals(bandId).primaryKeys()) as string[]);
+    return alive.filter((a) => !have.has(a.id));
+  }
+
+  async saveBlob(attachment: Attachment, data: ArrayBuffer): Promise<void> {
+    await this.db.files.put({
+      id: attachment.id, bandId: attachment.bandId, name: attachment.name, mimeType: attachment.mimeType, size: attachment.size,
+      songId: attachment.songId, instrumentId: attachment.instrumentId, createdAt: attachment.createdAt, uploaded: true, data,
+    });
   }
 
   onLocalChange(listener: (bandId: string) => void): () => void {

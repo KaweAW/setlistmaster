@@ -234,7 +234,7 @@ and what still has to be tried by hand on real devices.
   "Bands on this device" in Settings chooses which one to show (`activeBandId`). Songs added to the library in a later
   release now have an id derived from the band (no longer fixed), so two bands on one device do not collide, and two devices
   of the same band produce the same id (no duplicates after syncing).
-- **Not synced (yet)**: PDFs (they will go to Supabase Storage), appearance settings, scroll speed and text sizes (personal
+- **Not synced**: appearance settings, scroll speed and text sizes (personal
   to each device, on purpose).
 - **Verification**: engine tests with two "devices" (sharing, joining, conflicts, offline, revocation, live, damaged
   records), UI tests with a fake server (share, invite, join, revoked link or link for another email, read-only viewer),
@@ -276,4 +276,27 @@ and what still has to be tried by hand on real devices.
   page is open). Chords/PDF mode is per part too. An instrument with only PDFs and no chart text still gets its entry.
 - **Phone layout**: singers, Stage mode and the part selector share one line, and the part choice is a select ("Only text" plus
   the instruments) instead of a tab bar, so the chart starts higher. Facts, tuning and the chords/PDF switch stay above it.
-- **Still local**: PDFs do not sync (next branch: Supabase Storage).
+- **PDFs sync in phase 8** (below).
+
+## Phase 8 — PDFs in the cloud (Supabase Storage)
+
+- **Two things travel, separately.** The *description* of a PDF is a new synced record kind, `attachment` (song, optional
+  instrument, name, size…), with soft delete, last-write-wins and realtime like everything else. The *bytes* go to a private
+  Storage bucket, `pdfs`, as one object per PDF at `<band id>/<attachment id>`; the id never changes, so an object is never
+  renamed. Locally the bytes stay in `files`, which is now only the byte store (`uploaded` marks what the cloud already has).
+- **Order inside a sync round**: send records, read records, then move bytes: upload the PDFs the cloud lacks (not for
+  viewers), then download the ones this device lacks. So a bandmate's description may show up before its bytes; the song
+  page then says "has not reached this device yet" with a "Download now" button, and the next round fetches it. Prefetching on
+  every sync is deliberate: a chart must open on stage with no signal.
+- **Removal**: removing a PDF soft-deletes its attachment and deletes its bytes locally; when that record is sent, the object is
+  deleted from Storage (best effort; an orphan object is harmless and only takes space). Receiving a removal deletes the bytes.
+- **Rules** (migration `0003`, same as the data): any member reads; only the creator and editors add, replace or delete;
+  viewers and strangers get nothing; a path whose first folder is not a band id is refused. The bucket is private, PDF-only
+  and 25 MB per file (above that the upload is refused and the band's sync shows an error). Tested on PGlite with a stub of
+  the `storage` schema: the stub only has the two tables and RLS the policies need, so the real behaviour of the Storage API
+  (upload with `upsert`, download, signed-in header) is **to try by hand** on a real project.
+- **Upgrade of existing data**: Dexie v6 creates an attachment (same id as the file) for every PDF that belongs to a song
+  and, if its band is already synced, queues it. Backups are now version 4 and carry the attachments; an older backup gets
+  them made from its PDFs when it is read.
+- **Known limits**: no progress bar for big files; a PDF is uploaded whole (no resume); two devices that both add a PDF while
+  offline simply end up with both (distinct ids), which is what you want.

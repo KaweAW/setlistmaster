@@ -12,6 +12,7 @@ import { TuningForm } from '../components/TuningForm';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
+import { addAttachment, removeAttachment, songAttachments } from '../data/attachments';
 import { partId } from '../data/instruments';
 import { useQuery } from '../hooks/useQuery';
 import { useT, type MessageKey } from '../i18n';
@@ -49,8 +50,8 @@ export default function SongFormPage() {
       store.instruments.listBy('bandId', band.id),
       songId ? store.parts.listBy('songId', songId) : Promise.resolve([]),
     ]);
-    const files = song ? await store.files.listBySong(song.id) : [];
-    const pdfs: PdfInfo[] = files.map((f) => ({ id: f.id, name: f.name, size: f.size, instrumentId: f.instrumentId }));
+    const attachments = song ? await songAttachments(store, song.id) : [];
+    const pdfs: PdfInfo[] = attachments.map((a) => ({ id: a.id, name: a.name, size: a.size, instrumentId: a.instrumentId }));
     instruments.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
     return { song, performers, tunings, instruments, parts, knownTags: collectTags(songs), pdfs };
   }, [store, band.id, songId]);
@@ -215,13 +216,12 @@ function SongForm({
       const ticked = new Set(instrumentIds);
       const stays = (instrumentId: string | undefined) => instrumentId === undefined || ticked.has(instrumentId);
       for (const f of initialPdfs) {
-        if (!keptPdfs.some((k) => k.id === f.id) || !stays(f.instrumentId)) await store.files.remove(f.id);
+        if (!keptPdfs.some((k) => k.id === f.id) || !stays(f.instrumentId)) await removeAttachment(store, f.id);
       }
       for (const pending of newPdfs.filter((x) => stays(x.instrumentId))) {
-        await store.files.put({
+        await addAttachment(store, {
           id: pending.key, bandId: band.id, songId: saved.id, instrumentId: pending.instrumentId,
-          name: pending.file.name, mimeType: pending.file.type || 'application/pdf', size: pending.file.size,
-          data: await pending.file.arrayBuffer(), createdAt: Date.now(),
+          name: pending.file.name, mimeType: pending.file.type || 'application/pdf', data: await pending.file.arrayBuffer(),
         });
       }
       // One part per ticked instrument (its id is derived, so it is the same on every device); unticked ones go away.
@@ -255,7 +255,7 @@ function SongForm({
       return;
     }
     if (!window.confirm(t('common.deleteConfirm', { name: initial.title }))) return;
-    for (const f of await store.files.listBySong(initial.id)) await store.files.remove(f.id);
+    for (const a of await songAttachments(store, initial.id)) await removeAttachment(store, a.id);
     await store.songs.remove(initial.id);
     navigate('/library');
   }

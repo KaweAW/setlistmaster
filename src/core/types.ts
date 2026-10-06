@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type {
+  attachmentSchema,
   bandSchema,
   instrumentSchema,
   partSchema,
@@ -20,6 +21,7 @@ export type Member = z.infer<typeof memberSchema>;
 export type Performer = z.infer<typeof performerSchema>;
 export type Tuning = z.infer<typeof tuningSchema>;
 export type Instrument = z.infer<typeof instrumentSchema>;
+export type Attachment = z.infer<typeof attachmentSchema>;
 export type Part = z.infer<typeof partSchema>;
 export type Song = z.infer<typeof songSchema>;
 export type Setlist = z.infer<typeof setlistSchema>;
@@ -42,6 +44,8 @@ export interface StoredFile {
   name: string;
   mimeType: string;
   size: number;
+  /** Set once the bytes are in cloud storage (or came from there). Only meaningful on synced bands. */
+  uploaded?: boolean | undefined;
   /** The song it belongs to, and the instrument whose part it shows (none = the plain text). Older files get `songId` on upgrade. */
   songId?: string | undefined;
   instrumentId?: string | undefined;
@@ -57,6 +61,7 @@ export interface StoreSnapshot {
   tunings: Tuning[];
   instruments: Instrument[];
   parts: Part[];
+  attachments: Attachment[];
   songs: Song[];
   setlists: Setlist[];
   blocks: Block[];

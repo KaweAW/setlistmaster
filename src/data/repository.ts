@@ -1,5 +1,6 @@
 import type { OutboxEntry, SyncRecord } from '../core/sync';
 import type {
+  Attachment,
   Band,
   BaseEntity,
   Block,
@@ -45,8 +46,8 @@ export interface Repository<T extends BaseEntity> {
 /** Binary attachments (PDF charts). Kept apart from the entity repositories: hard delete, no validation. */
 export interface FileRepository {
   get(id: string): Promise<StoredFile | undefined>;
-  /** Every PDF of a song (all parts), oldest first. */
-  listBySong(songId: string): Promise<StoredFile[]>;
+  /** Which of these ids have their bytes on this device. */
+  present(ids: string[]): Promise<Set<string>>;
   put(file: StoredFile): Promise<void>;
   remove(id: string): Promise<void>;
 }
@@ -81,6 +82,13 @@ export interface SyncStore {
   ack(entries: OutboxEntry[]): Promise<void>;
   /** Writes changes that came from the cloud, last write wins. They are not queued to be sent back. Returns how many were applied. */
   applyRemote(records: SyncRecord[]): Promise<number>;
+  /** PDFs of this band whose bytes are not in cloud storage yet (their attachment is alive). */
+  pendingBlobs(bandId: string): Promise<StoredFile[]>;
+  markBlobUploaded(id: string): Promise<void>;
+  /** Alive attachments of this band whose bytes are not on this device. */
+  missingBlobs(bandId: string): Promise<Attachment[]>;
+  /** Stores bytes that came from the cloud. */
+  saveBlob(attachment: Attachment, data: ArrayBuffer): Promise<void>;
   /** Called after every local change to a synced band. */
   onLocalChange(listener: (bandId: string) => void): () => void;
 }
@@ -92,6 +100,7 @@ export interface DataStore {
   tunings: Repository<Tuning>;
   instruments: Repository<Instrument>;
   parts: Repository<Part>;
+  attachments: Repository<Attachment>;
   songs: Repository<Song>;
   setlists: Repository<Setlist>;
   blocks: Repository<Block>;

@@ -6,6 +6,10 @@ export interface RemoteClient {
   push(bandId: string, records: SyncRecord[]): Promise<void>;
   /** Records with `seq` greater than `afterSeq`, oldest first, each carrying its `seq`. */
   pull(bandId: string, afterSeq: number, limit: number): Promise<SyncRecord[]>;
+  /** The bytes of a PDF (cloud storage). `downloadBlob` answers null when the object is not there (yet). */
+  uploadBlob(bandId: string, id: string, data: ArrayBuffer, mimeType: string): Promise<void>;
+  downloadBlob(bandId: string, id: string): Promise<ArrayBuffer | null>;
+  removeBlob(bandId: string, id: string): Promise<void>;
   /** Live changes. Returns the function that stops listening. `onState('live')` means we are connected (again). */
   subscribe(bandId: string, onRecord: (record: SyncRecord) => void, onState: (state: 'live' | 'down') => void): () => void;
 }
@@ -106,6 +110,7 @@ export class SyncEngine {
     try {
       if (this.hooks.canWrite?.(bandId) ?? true) await this.push(bandId);
       await this.pull(bandId);
+      await this.transferBlobs(bandId);
       this.lastSynced.set(bandId, this.now());
       await this.report(bandId, 'idle');
     } catch (error) {
@@ -121,8 +126,28 @@ export class SyncEngine {
       if (entries.length === 0) return;
       const records = await this.store.readRecords(entries);
       if (records.length > 0) await this.remote.push(bandId, records);
+      // A PDF that was removed: its bytes in storage are no use to anyone (best effort, never blocks the sync).
+      for (const r of records) if (r.kind === 'attachment' && r.deletedAt !== null) await this.remote.removeBlob(bandId, r.id).catch(() => {});
       await this.store.ack(entries);
     }
+  }
+
+  /** PDFs: send the ones the cloud has not got, then fetch the ones this device is missing (so charts work offline on stage). */
+  private async transferBlobs(bandId: string): Promise<void> {
+    if (this.hooks.canWrite?.(bandId) ?? true) {
+      for (const file of await this.store.pendingBlobs(bandId)) {
+        await this.remote.uploadBlob(bandId, file.id, file.data, file.mimeType);
+        await this.store.markBlobUploaded(file.id);
+      }
+    }
+    let fetched = 0;
+    for (const attachment of await this.store.missingBlobs(bandId)) {
+      const data = await this.remote.downloadBlob(bandId, attachment.id);
+      if (!data) continue; // the author has not uploaded it yet: a later round gets it
+      await this.store.saveBlob(attachment, data);
+      fetched++;
+    }
+    if (fetched > 0) this.hooks.onApplied();
   }
 
   private async pull(bandId: string): Promise<void> {

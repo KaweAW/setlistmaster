@@ -91,8 +91,9 @@ class DexieFileRepository implements FileRepository {
   get(id: string): Promise<StoredFile | undefined> {
     return this.table.get(id);
   }
-  async listBySong(songId: string): Promise<StoredFile[]> {
-    return (await this.table.where('songId').equals(songId).toArray()).sort((a, b) => a.createdAt - b.createdAt);
+  async present(ids: string[]): Promise<Set<string>> {
+    const keys = await this.table.where('id').anyOf(ids).primaryKeys();
+    return new Set(keys as string[]);
   }
   async put(file: StoredFile): Promise<void> {
     await this.table.put(file);
@@ -124,6 +125,7 @@ class DexieBulkStore implements BulkStore {
       tunings: await live(db.tunings, s.tuningSchema),
       instruments: await live(db.instruments, s.instrumentSchema),
       parts: await live(db.parts, s.partSchema),
+      attachments: await live(db.attachments, s.attachmentSchema),
       songs: await live(db.songs, s.songSchema),
       setlists: await live(db.setlists, s.setlistSchema),
       blocks: await live(db.blocks, s.blockSchema),
@@ -141,6 +143,7 @@ class DexieBulkStore implements BulkStore {
       tunings: snapshot.tunings.map((r) => s.tuningSchema.parse(r)),
       instruments: snapshot.instruments.map((r) => s.instrumentSchema.parse(r)),
       parts: snapshot.parts.map((r) => s.partSchema.parse(r)),
+      attachments: snapshot.attachments.map((r) => s.attachmentSchema.parse(r)),
       songs: snapshot.songs.map((r) => s.songSchema.parse(r)),
       setlists: snapshot.setlists.map((r) => s.setlistSchema.parse(r)),
       blocks: snapshot.blocks.map((r) => s.blockSchema.parse(r)),
@@ -157,6 +160,7 @@ class DexieBulkStore implements BulkStore {
       await db.tunings.bulkPut(valid.tunings);
       await db.instruments.bulkPut(valid.instruments);
       await db.parts.bulkPut(valid.parts);
+      await db.attachments.bulkPut(valid.attachments);
       await db.songs.bulkPut(valid.songs);
       await db.setlists.bulkPut(valid.setlists);
       await db.blocks.bulkPut(valid.blocks);
@@ -192,6 +196,7 @@ export function createDexieStore(options: DexieStoreOptions = {}): DataStore & {
     tunings: new DexieRepository(db.tunings, s.tuningSchema, now, track('tuning')),
     instruments: new DexieRepository(db.instruments, s.instrumentSchema, now, track('instrument')),
     parts: new DexieRepository(db.parts, s.partSchema, now, track('part')),
+    attachments: new DexieRepository(db.attachments, s.attachmentSchema, now, track('attachment')),
     songs: new DexieRepository(db.songs, s.songSchema, now, track('song')),
     setlists: new DexieRepository(db.setlists, s.setlistSchema, now, track('setlist')),
     blocks: new DexieRepository(db.blocks, s.blockSchema, now, track('block')),

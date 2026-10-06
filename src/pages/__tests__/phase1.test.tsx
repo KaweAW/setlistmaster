@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { songAttachments } from '../../data/attachments';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -101,8 +102,9 @@ describe('song form', () => {
     });
     expect(tunings.find((x) => x.id === saved.tuningId)?.name).toBe('Drop C');
     expect(saved.defaultPerformerIds).toHaveLength(1);
-    const stored = await store.files.listBySong(saved.id);
+    const stored = await songAttachments(store, saved.id);
     expect(stored.map((f) => [f.name, f.instrumentId])).toEqual([['sun.pdf', undefined]]);
+    expect((await store.files.get(stored[0]!.id))?.size).toBe(4); // the bytes are on the device too
   });
 
   it('rejects an invalid duration', async () => {
