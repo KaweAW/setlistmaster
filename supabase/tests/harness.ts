@@ -1,0 +1,53 @@
+import { PGlite } from '@electric-sql/pglite';
+import { readFileSync } from 'node:fs';
+
+const migration = readFileSync(new URL('../migrations/0001_cloud.sql', import.meta.url), 'utf8');
+
+export interface User {
+  id: string;
+  email: string;
+}
+
+/** A real Postgres (WASM) with the bits of Supabase the migration relies on: roles, auth.uid(), auth.jwt(), Realtime publication. */
+export async function newDb() {
+  const db = new PGlite();
+  await db.exec(`
+    create role anon nologin;
+    create role authenticated nologin;
+    create schema auth;
+    create table auth.users (id uuid primary key, email text);
+    create function auth.uid() returns uuid language sql stable as
+      $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create function auth.jwt() returns jsonb language sql stable as
+      $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+    grant usage on schema auth to authenticated;
+    grant usage on schema public to anon, authenticated;
+    create publication supabase_realtime;
+  `);
+  await db.exec(migration);
+  return db;
+}
+
+let counter = 0;
+export async function newUser(db: PGlite, name: string): Promise<User> {
+  const id = (await db.query<{ u: string }>('select gen_random_uuid()::text as u')).rows[0]!.u;
+  const email = `${name}${++counter}@example.com`;
+  await db.query('insert into auth.users (id, email) values ($1, $2)', [id, email]);
+  return { id, email };
+}
+
+/** Runs one statement as a signed-in user (or as nobody), the way PostgREST does for the app. */
+export async function as<T = Record<string, unknown>>(db: PGlite, user: User | null, sql: string, params: unknown[] = []) {
+  await db.query("select set_config('request.jwt.claim.sub', $1, false), set_config('request.jwt.claims', $2, false)", [
+    user?.id ?? '',
+    JSON.stringify(user ? { sub: user.id, email: user.email } : {}),
+  ]);
+  await db.exec(user ? 'set role authenticated' : 'set role anon');
+  try {
+    return (await db.query<T>(sql, params)).rows;
+  } finally {
+    await db.exec('reset role');
+  }
+}
+
+export const uuid = async (db: PGlite) => (await db.query<{ u: string }>('select gen_random_uuid()::text as u')).rows[0]!.u;
