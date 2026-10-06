@@ -91,6 +91,9 @@ class DexieFileRepository implements FileRepository {
   get(id: string): Promise<StoredFile | undefined> {
     return this.table.get(id);
   }
+  async listBySong(songId: string): Promise<StoredFile[]> {
+    return (await this.table.where('songId').equals(songId).toArray()).sort((a, b) => a.createdAt - b.createdAt);
+  }
   async put(file: StoredFile): Promise<void> {
     await this.table.put(file);
   }

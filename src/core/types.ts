@@ -42,6 +42,9 @@ export interface StoredFile {
   name: string;
   mimeType: string;
   size: number;
+  /** The song it belongs to, and the instrument whose part it shows (none = the plain text). Older files get `songId` on upgrade. */
+  songId?: string | undefined;
+  instrumentId?: string | undefined;
   data: ArrayBuffer;
   createdAt: number;
 }

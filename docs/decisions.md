@@ -263,4 +263,17 @@ and what still has to be tried by hand on real devices.
   tab of that instrument when the song has it, otherwise on Text.
 - **Migration** `0002_instruments.sql` widens the `records.kind` check and adds the member column and the two functions. The
   PGlite test harness now applies every migration in order.
-- **Not done here**: PDFs per part (next branch; PDFs are still local only).
+
+### Phase 7b — PDFs per part, and the phone layout
+
+- **Several PDFs per part.** A PDF is now tied to its song and, optionally, to an instrument (`songId`, `instrumentId` on the
+  stored file; none = the plain text). `song.pdfBlobId` is no longer written (it stays in the schema so old data and other
+  devices still parse). Dexie v5 indexes files by song and tags the existing ones from the songs that pointed at them; a backup
+  from before (version 1 or 2) is tagged the same way when it is read. Backups are now version 3.
+- **Form**: the text and each ticked instrument have their own list with "Add PDF" (several files at once) and "Remove".
+  Unticking an instrument removes its part text *and* its PDFs on save, like singers and tunings that cannot linger unseen.
+- **Song page**: one PDF opens directly; with more than one, a select under the toggle chooses (remembered per part while the
+  page is open). Chords/PDF mode is per part too. An instrument with only PDFs and no chart text still gets its entry.
+- **Phone layout**: singers, Stage mode and the part selector share one line, and the part choice is a select ("Only text" plus
+  the instruments) instead of a tab bar, so the chart starts higher. Facts, tuning and the chords/PDF switch stay above it.
+- **Still local**: PDFs do not sync (next branch: Supabase Storage).

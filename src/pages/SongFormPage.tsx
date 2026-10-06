@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { formatBytes, formatDuration, parseDuration } from '../core/format';
 import { newId } from '../core/ids';
@@ -23,6 +23,15 @@ interface PdfInfo {
   id: string;
   name: string;
   size: number;
+  /** Undefined = the plain text's PDF. */
+  instrumentId?: string | undefined;
+}
+
+/** A PDF chosen in the form, saved with the song. */
+interface PendingPdf {
+  key: string;
+  file: File;
+  instrumentId?: string | undefined;
 }
 
 export default function SongFormPage() {
@@ -40,10 +49,10 @@ export default function SongFormPage() {
       store.instruments.listBy('bandId', band.id),
       songId ? store.parts.listBy('songId', songId) : Promise.resolve([]),
     ]);
-    const file = song?.pdfBlobId ? await store.files.get(song.pdfBlobId) : undefined;
-    const pdf: PdfInfo | undefined = file ? { id: file.id, name: file.name, size: file.size } : undefined;
+    const files = song ? await store.files.listBySong(song.id) : [];
+    const pdfs: PdfInfo[] = files.map((f) => ({ id: f.id, name: f.name, size: f.size, instrumentId: f.instrumentId }));
     instruments.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
-    return { song, performers, tunings, instruments, parts, knownTags: collectTags(songs), pdf };
+    return { song, performers, tunings, instruments, parts, knownTags: collectTags(songs), pdfs };
   }, [store, band.id, songId]);
 
   if (!canEdit) {
@@ -74,7 +83,7 @@ export default function SongFormPage() {
       instruments={data.instruments}
       initialParts={data.parts}
       knownTags={data.knownTags}
-      initialPdf={data.pdf}
+      initialPdfs={data.pdfs}
     />
   );
 }
@@ -88,7 +97,7 @@ function SongForm({
   instruments,
   initialParts,
   knownTags,
-  initialPdf,
+  initialPdfs,
 }: {
   initial: Song | undefined;
   performers: Performer[];
@@ -96,7 +105,7 @@ function SongForm({
   instruments: Instrument[];
   initialParts: Part[];
   knownTags: string[];
-  initialPdf: PdfInfo | undefined;
+  initialPdfs: PdfInfo[];
 }) {
   const t = useT();
   const navigate = useNavigate();
@@ -127,17 +136,11 @@ function SongForm({
 
   const [newTuningOpen, setNewTuningOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfRemoved, setPdfRemoved] = useState(false);
+  const [keptPdfs, setKeptPdfs] = useState<PdfInfo[]>(initialPdfs);
+  const [newPdfs, setNewPdfs] = useState<PendingPdf[]>([]);
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  const currentPdf = pdfFile
-    ? { name: pdfFile.name, size: pdfFile.size }
-    : pdfRemoved
-      ? undefined
-      : initialPdf;
 
   function addTag() {
     const next = normalizeTags([...tags, tagInput]);
@@ -162,13 +165,9 @@ function SongForm({
     setInstrumentIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   }
 
-  function onPdfChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPdfFile(file);
-      setPdfRemoved(false);
-    }
-    e.target.value = '';
+  function addPdfs(files: FileList | null, instrumentId: string | undefined) {
+    if (!files) return;
+    setNewPdfs((list) => [...list, ...Array.from(files).map((file) => ({ key: newId(), file, instrumentId }))]);
   }
 
   async function createTuning(values: { name: string; notes: string }) {
@@ -195,25 +194,6 @@ function SongForm({
     setSaving(true);
     setMessage(null);
     try {
-      let pdfBlobId = initial?.pdfBlobId;
-      if (pdfFile) {
-        const id = newId();
-        await store.files.put({
-          id,
-          bandId: band.id,
-          name: pdfFile.name,
-          mimeType: pdfFile.type || 'application/pdf',
-          size: pdfFile.size,
-          data: await pdfFile.arrayBuffer(),
-          createdAt: Date.now(),
-        });
-        if (pdfBlobId) await store.files.remove(pdfBlobId);
-        pdfBlobId = id;
-      } else if (pdfRemoved && pdfBlobId) {
-        await store.files.remove(pdfBlobId);
-        pdfBlobId = undefined;
-      }
-
       const data = {
         bandId: band.id,
         title: title.trim(),
@@ -226,11 +206,24 @@ function SongForm({
         defaultPerformerIds: performerIds,
         instrumentIds,
         chordpro,
-        pdfBlobId,
+        pdfBlobId: undefined, // PDFs now belong to the song through the file itself (`songId`), several per part
         notes,
         tags: normalizeTags([...tags, tagInput]),
       };
       const saved = initial ? await store.songs.update(initial.id, data) : await store.songs.create(data);
+      // PDFs: the ones you removed (and those of instruments you unticked) go; the new ones are stored for this song.
+      const ticked = new Set(instrumentIds);
+      const stays = (instrumentId: string | undefined) => instrumentId === undefined || ticked.has(instrumentId);
+      for (const f of initialPdfs) {
+        if (!keptPdfs.some((k) => k.id === f.id) || !stays(f.instrumentId)) await store.files.remove(f.id);
+      }
+      for (const pending of newPdfs.filter((x) => stays(x.instrumentId))) {
+        await store.files.put({
+          id: pending.key, bandId: band.id, songId: saved.id, instrumentId: pending.instrumentId,
+          name: pending.file.name, mimeType: pending.file.type || 'application/pdf', size: pending.file.size,
+          data: await pending.file.arrayBuffer(), createdAt: Date.now(),
+        });
+      }
       // One part per ticked instrument (its id is derived, so it is the same on every device); unticked ones go away.
       for (const instrument of instruments) {
         const id = await partId(band.id, saved.id, instrument.id);
@@ -262,7 +255,7 @@ function SongForm({
       return;
     }
     if (!window.confirm(t('common.deleteConfirm', { name: initial.title }))) return;
-    if (initial.pdfBlobId) await store.files.remove(initial.pdfBlobId);
+    for (const f of await store.files.listBySong(initial.id)) await store.files.remove(f.id);
     await store.songs.remove(initial.id);
     navigate('/library');
   }
@@ -382,42 +375,24 @@ function SongForm({
               ))}
             </div>
             {instruments.filter((i) => instrumentIds.includes(i.id)).map((i) => (
-              <Field key={i.id} label={t('part.chordpro', { name: i.name })} className="mt-3">
-                <textarea
-                  className={`${textareaClass} font-mono text-[15px]`}
-                  rows={8}
-                  spellCheck={false}
-                  value={partTexts[i.id] ?? ''}
-                  onChange={(e) => setPartTexts((x) => ({ ...x, [i.id]: e.target.value }))}
-                />
-              </Field>
+              <div key={i.id} className="mt-3 space-y-2">
+                <Field label={t('part.chordpro', { name: i.name })}>
+                  <textarea
+                    className={`${textareaClass} font-mono text-[15px]`}
+                    rows={8}
+                    spellCheck={false}
+                    value={partTexts[i.id] ?? ''}
+                    onChange={(e) => setPartTexts((x) => ({ ...x, [i.id]: e.target.value }))}
+                  />
+                </Field>
+                <PdfScope instrumentId={i.id} label={i.name} kept={keptPdfs} added={newPdfs} setKept={setKeptPdfs} setAdded={setNewPdfs} onAdd={addPdfs} />
+              </div>
             ))}
           </FieldGroup>
         )}
 
         <FieldGroup legend={t('field.pdf')}>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className={`${buttonClass('secondary')} cursor-pointer focus-within:ring-2 focus-within:ring-io`}>
-              <input type="file" accept="application/pdf" className="sr-only" onChange={onPdfChange} />
-              {currentPdf ? t('pdf.replace') : t('pdf.choose')}
-            </label>
-            {currentPdf ? (
-              <>
-                <span className="text-sm text-soft">{currentPdf.name} · {formatBytes(currentPdf.size)}</span>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setPdfFile(null);
-                    setPdfRemoved(true);
-                  }}
-                >
-                  {t('common.remove')}
-                </Button>
-              </>
-            ) : (
-              <span className="text-sm text-soft">{t('pdf.none')}</span>
-            )}
-          </div>
+          <PdfScope instrumentId={undefined} kept={keptPdfs} added={newPdfs} setKept={setKeptPdfs} setAdded={setNewPdfs} onAdd={addPdfs} />
         </FieldGroup>
 
         <FieldGroup legend={t('field.tags')}>
@@ -476,5 +451,58 @@ function SongForm({
         />
       )}
     </main>
+  );
+}
+
+/** The PDFs of one part (the plain text when `instrumentId` is undefined): the list, "remove", and a picker that takes several files. */
+function PdfScope({
+  instrumentId, label, kept, added, setKept, setAdded, onAdd,
+}: {
+  instrumentId: string | undefined;
+  label?: string;
+  kept: PdfInfo[];
+  added: PendingPdf[];
+  setKept: (list: PdfInfo[]) => void;
+  setAdded: (list: PendingPdf[]) => void;
+  onAdd: (files: FileList | null, instrumentId: string | undefined) => void;
+}) {
+  const t = useT();
+  const mine = [
+    ...kept.filter((f) => f.instrumentId === instrumentId).map((f) => ({ id: f.id, name: f.name, size: f.size, existing: true })),
+    ...added.filter((f) => f.instrumentId === instrumentId).map((f) => ({ id: f.key, name: f.file.name, size: f.file.size, existing: false })),
+  ];
+  return (
+    <div className="space-y-2">
+      {label && <p className="text-sm font-semibold">{t('pdf.of', { name: label })}</p>}
+      {mine.length === 0 && <p className="text-sm text-soft">{t('pdf.none')}</p>}
+      <ul className="space-y-1">
+        {mine.map((f) => (
+          <li key={f.id} className="flex items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-sm text-soft">{f.name} · {formatBytes(f.size)}</span>
+            <Button
+              variant="secondary"
+              aria-label={`${t('common.remove')} ${f.name}`}
+              onClick={() => (f.existing ? setKept(kept.filter((k) => k.id !== f.id)) : setAdded(added.filter((a) => a.key !== f.id)))}
+            >
+              {t('common.remove')}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <label className={`${buttonClass('secondary')} cursor-pointer focus-within:ring-2 focus-within:ring-io`}>
+        <input
+          type="file"
+          accept="application/pdf"
+          multiple
+          className="sr-only"
+          aria-label={label ? t('pdf.addFor', { name: label }) : t('pdf.addText')}
+          onChange={(e) => {
+            onAdd(e.target.files, instrumentId);
+            e.target.value = '';
+          }}
+        />
+        {t('pdf.add')}
+      </label>
+    </div>
   );
 }
