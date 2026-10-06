@@ -15,6 +15,8 @@ export class FakeCloudServer {
   readonly bands = new Map<string, string>();
   readonly members = new Map<string, RemoteMember[]>();
   readonly invites: Invite[] = [];
+  /** `${bandId}:${userId}` → the instrument that member plays. */
+  readonly instruments = new Map<string, string>();
   private n = 0;
 
   /** The API as seen by one signed-in person (or `null` for a signed-out visitor). */
@@ -65,6 +67,13 @@ export class FakeCloudServer {
       async leaveBand(bandId) {
         if (roleOf(bandId) === 'creator') throw new CloudError('creator_cannot_leave', 'creator_cannot_leave');
         server.members.set(bandId, server.members.get(bandId)!.filter((m) => m.userId !== current?.id));
+      },
+      async myInstrument(bandId) { return server.instruments.get(`${bandId}:${current!.id}`) ?? null; },
+      async setMyInstrument(bandId, instrumentId) {
+        if (roleOf(bandId) === null) throw new CloudError('forbidden', 'forbidden');
+        const key = `${bandId}:${current!.id}`;
+        if (instrumentId) server.instruments.set(key, instrumentId);
+        else server.instruments.delete(key);
       },
       async previewInvitation(token): Promise<InvitationPreview> {
         const i = server.invites.find((x) => x.token === token);

@@ -1,7 +1,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
-const migration = readFileSync(new URL('../migrations/0001_cloud.sql', import.meta.url), 'utf8');
+// Every migration, in order: the database under test is the one a real project ends up with.
+const migrations = ['0001_cloud.sql', '0002_instruments.sql'].map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 
 export interface User {
   id: string;
@@ -24,7 +25,7 @@ export async function newDb() {
     grant usage on schema public to anon, authenticated;
     create publication supabase_realtime;
   `);
-  await db.exec(migration);
+  for (const migration of migrations) await db.exec(migration);
   return db;
 }
 

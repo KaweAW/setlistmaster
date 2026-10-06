@@ -46,6 +46,42 @@ export function useCanEdit(bandId: string): boolean {
   return !(linked.has(bandId) && roles[bandId] === 'viewer');
 }
 
+/**
+ * The instrument I play in the open band. On a synced band and signed in it lives on my membership (so it follows me
+ * to every device); otherwise, and as an offline copy, on this device. Local choices made while offline reach the
+ * account the next time the band opens.
+ */
+export function useMyInstrument(): { id: string | null; set: (id: string | null) => Promise<void> } {
+  const { api, user, linked } = useCloud();
+  const { band } = useData();
+  const local = useUiStore((s) => s.myInstruments[band.id] ?? null);
+  const setLocal = useUiStore((s) => s.setMyInstrument);
+  const synced = !!api && !!user && linked.has(band.id);
+  useEffect(() => {
+    if (!api || !synced) return;
+    let alive = true;
+    void api
+      .myInstrument(band.id)
+      .then((remote) => {
+        if (!alive) return;
+        if (remote) setLocal(band.id, remote);
+        else if (useUiStore.getState().myInstruments[band.id]) void api.setMyInstrument(band.id, useUiStore.getState().myInstruments[band.id]!).catch(() => {});
+      })
+      .catch(() => {}); // offline: the local copy stands
+    return () => {
+      alive = false;
+    };
+  }, [api, synced, band.id, setLocal]);
+  const set = useCallback(
+    async (id: string | null) => {
+      setLocal(band.id, id);
+      if (api && synced) await api.setMyInstrument(band.id, id).catch(() => {});
+    },
+    [api, synced, band.id, setLocal],
+  );
+  return { id: local, set };
+}
+
 const PUSH_DELAY_MS = 800;
 
 /**

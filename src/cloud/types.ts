@@ -63,6 +63,9 @@ export interface CloudApi {
   setMemberRole(bandId: string, userId: string, role: InviteRole): Promise<void>;
   removeMember(bandId: string, userId: string): Promise<void>;
   leaveBand(bandId: string): Promise<void>;
+  /** The instrument I play in this band, kept on my membership (so it follows me across devices). */
+  myInstrument(bandId: string): Promise<string | null>;
+  setMyInstrument(bandId: string, instrumentId: string | null): Promise<void>;
   previewInvitation(token: string): Promise<InvitationPreview>;
   acceptInvitation(token: string): Promise<string>;
 }

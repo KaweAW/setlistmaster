@@ -188,3 +188,28 @@ describe('what only the creator can do', () => {
     expect(await rows(alice, 'select 1 from public.members')).toHaveLength(1);
   });
 });
+
+describe('instruments', () => {
+  it('syncs instruments and parts like any other record', async () => {
+    const instrument = await uuid(db);
+    const part = await uuid(db);
+    expect(await upsert(alice, [rec('instrument', instrument, 1, { name: 'Bass' }), rec('part', part, 1, { instrumentId: instrument })])).toBe(2);
+    expect((await rows(alice, "select kind from public.records where kind in ('instrument', 'part') order by kind")).map((r) => r.kind)).toEqual(['instrument', 'part']);
+  });
+  it('remembers which instrument each member plays, for that member only', async () => {
+    await join(bob, 'viewer');
+    const bass = await uuid(db);
+    const piano = await uuid(db);
+    expect((await rows<{ i: string | null }>(bob, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBeNull();
+    await rows(bob, 'select public.set_my_instrument($1, $2)', [bandId, bass]); // viewers may: it is their own preference
+    await rows(alice, 'select public.set_my_instrument($1, $2)', [bandId, piano]);
+    expect((await rows<{ i: string }>(bob, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBe(bass);
+    expect((await rows<{ i: string }>(alice, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBe(piano);
+    await rows(bob, 'select public.set_my_instrument($1, null)', [bandId]);
+    expect((await rows<{ i: string | null }>(bob, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBeNull();
+  });
+  it('refuses people who are not in the band', async () => {
+    await expect(rows(carol, 'select public.set_my_instrument($1, $2)', [bandId, await uuid(db)])).rejects.toThrow();
+    expect((await rows<{ i: string | null }>(carol, 'select public.my_instrument($1) as i', [bandId]))[0]!.i).toBeNull();
+  });
+});
