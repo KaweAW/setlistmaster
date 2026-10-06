@@ -287,6 +287,7 @@ export const en = {
   'notice.revoked': 'You no longer have access to “{band}”. Your copy stays on this device.',
   'notice.revokedAction': 'Details',
   'readonly.badge': 'Read only',
+  'readonly.message': 'You can read and play this band, but not change it.',
 } as const;
 
 export type MessageKey = keyof typeof en;

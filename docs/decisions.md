@@ -227,8 +227,9 @@ and what still has to be tried by hand on real devices.
   happens: the queue waits.
 - **Revoked access**: if the server answers "not authorized", the state becomes "revoked", a notice appears and the copy
   stays on the device as a local band (you can "keep a copy" or "leave").
-- **Viewers**: the edit buttons on Home, Library, Setlist and Song are hidden and the engine sends nothing. Known limit:
-  the Singers/Tunings sections of Settings are not yet locked (those edits would stay local only).
+- **Viewers**: the edit buttons on Home, Library, Setlist, Song and the Singers/Tunings sections of Settings are hidden, the
+  new-song form and the setlist edit mode do not open even from a typed address, and the engine sends nothing. (This is
+  only convenience: the real guard is the database, which refuses a viewer's writes.)
 - **More than one band on a device**: after accepting an invitation the band joins the device next to the local one;
   "Bands on this device" in Settings chooses which one to show (`activeBandId`). Songs added to the library in a later
   release now have an id derived from the band (no longer fixed), so two bands on one device do not collide, and two devices
