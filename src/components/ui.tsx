@@ -15,7 +15,7 @@ const variants: Record<Variant, string> = {
 };
 
 export function buttonClass(variant: Variant = 'primary'): string {
-  return `inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-base font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-io disabled:opacity-50 ${variants[variant]}`;
+  return `inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-base font-semibold transition-colors motion-safe:transition-transform motion-safe:active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-io disabled:opacity-50 ${variants[variant]}`;
 }
 
 export function Button({

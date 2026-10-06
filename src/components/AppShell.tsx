@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, Outlet, useMatch } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useMatch } from 'react-router-dom';
 import { useT, type MessageKey } from '../i18n';
 import { useUiStore } from '../state/uiStore';
 import { NoticeBar } from './NoticeBar';
@@ -20,6 +20,7 @@ const LINKS: { to: string; key: MessageKey; end?: boolean; icon: ReactNode }[] =
 export default function AppShell() {
   const t = useT();
   const stage = useUiStore((s) => s.stageMode);
+  const { pathname } = useLocation();
   // On stage, the setlist on the music stand has no navigation bar to hit by accident (it keeps its own
   // back and exit buttons). The other screens keep it, so there is always a way back to the settings.
   const onSetlist = useMatch('/setlist/:setlistId') !== null; // a hook: always called, never inside a condition
@@ -54,7 +55,10 @@ export default function AppShell() {
         <div className="mx-auto w-full max-w-3xl px-4 pt-4 empty:hidden">
           <NoticeBar />
         </div>
-        <Outlet />
+        {/* A short fade when the screen changes. Keyed by path: the page underneath starts fresh, as it did before. */}
+        <div key={pathname} className="motion-safe:animate-rise-in">
+          <Outlet />
+        </div>
       </div>
 
       {/* A class, not the `hidden` attribute: Tailwind's display utilities override the attribute. */}

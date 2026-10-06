@@ -38,6 +38,16 @@
     --c-chord: 94 214 224;
     color-scheme: dark;
   }
+  /* Reduced motion: keep the layout, drop the movement. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
   html {
     background: rgb(var(--c-paper));
     -webkit-print-color-adjust: exact;
