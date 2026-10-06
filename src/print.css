@@ -1,0 +1,120 @@
+/*
+ * A4 PDF of a setlist. Page frame copied from the prototype: ink strip (6mm) + pink-violet-teal
+ * gradient (1.2mm) on the left of every page. The "mobile" adjustments live ONLY in @media screen:
+ * a max-width rule that also applied to print broke the layout in the prototype.
+ */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+.pp-root {
+  min-height: 100vh;
+  background: #cfd1ca;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pp-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  padding: 10px;
+  background: #1b2038;
+  color: #f2f3ef;
+}
+
+.pp-page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  margin: 12px auto;
+  padding: 14mm 15mm 12mm 20mm; /* 5mm of the left padding is the gap after the strips */
+  overflow: hidden;
+  background: #f2f3ef;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+}
+.pp-page::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6mm;
+  background: #1b2038;
+}
+.pp-page::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 6mm;
+  width: 1.2mm;
+  background: linear-gradient(#c4245c, #6b4bb8 50%, #0e7c86);
+}
+
+/* Off-screen copy used only to measure heights before paginating. */
+.pp-measure {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  width: 175mm; /* 210 - 20 - 15 */
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Screen only: pages are A4-sized, so on narrow screens the whole stack is scaled down to fit. */
+@media screen {
+  .pp-viewport {
+    position: relative;
+    overflow: hidden;
+    height: calc(var(--pp-k, 1) * var(--pp-h, 297mm));
+  }
+  .pp-scale {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 210mm;
+    margin-left: -105mm;
+    transform: scale(var(--pp-k, 1));
+    transform-origin: top center;
+  }
+}
+
+@media print {
+  /* Invisible but tall: left in place it would add blank pages. Measuring happens on screen. */
+  .pp-measure {
+    display: none !important;
+  }
+  html,
+  body {
+    background: none !important;
+  }
+  .pp-root {
+    min-height: 0;
+    background: none;
+  }
+  .pp-toolbar {
+    display: none !important;
+  }
+  .pp-viewport {
+    overflow: visible;
+    height: auto;
+  }
+  .pp-scale {
+    position: static;
+    width: auto;
+    margin: 0;
+    transform: none;
+  }
+  .pp-page {
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .pp-page:last-child {
+    break-after: auto;
+  }
+}

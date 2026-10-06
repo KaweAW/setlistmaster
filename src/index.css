@@ -1,0 +1,51 @@
+@import '@fontsource/oswald/500.css';
+@import '@fontsource/oswald/700.css';
+@import '@fontsource/oswald/cyrillic-500.css';
+@import '@fontsource/oswald/cyrillic-700.css';
+@import '@fontsource/source-sans-3/400.css';
+@import '@fontsource/source-sans-3/600.css';
+@import '@fontsource/source-sans-3/400-italic.css';
+@import '@fontsource/source-sans-3/cyrillic-400.css';
+@import '@fontsource/source-sans-3/cyrillic-600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Colour tokens as space-separated RGB so Tailwind can add opacity (bg-paper/95, border-lei/40…). */
+  :root,
+  .force-light {
+    --c-paper: 242 243 239;
+    --c-ink: 27 32 56;
+    --c-soft: 91 97 120;
+    --c-line: 214 216 210;
+    --c-surface: 255 255 255;
+    --c-io: 14 124 134;
+    --c-lei: 196 36 92;
+    --c-chord: 14 124 134;
+    color-scheme: light;
+  }
+  /* Dark theme and stage mode: lighter accents so they keep their contrast on a dark ground. */
+  .dark {
+    --c-paper: 15 18 32;
+    --c-ink: 236 237 243;
+    --c-soft: 163 168 188;
+    --c-line: 44 49 80;
+    --c-surface: 27 32 56;
+    --c-io: 79 209 219;
+    --c-lei: 240 86 143;
+    --c-chord: 94 214 224;
+    color-scheme: dark;
+  }
+  html {
+    background: rgb(var(--c-paper));
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+}
