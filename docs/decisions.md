@@ -300,3 +300,14 @@ and what still has to be tried by hand on real devices.
   them made from its PDFs when it is read.
 - **Known limits**: no progress bar for big files; a PDF is uploaded whole (no resume); two devices that both add a PDF while
   offline simply end up with both (distinct ids), which is what you want.
+
+## Phase 9 — The song form, part by part
+
+- **One part on screen at a time.** With text, several instruments and several PDFs per part, the form had become a long
+  scroll where "Add PDF" sank below every open editor. It is now three cards: *The song* (title, key, tuning, singers),
+  *Charts* and *Tags and notes*. In *Charts* a tab bar has "Text" (always there) and one tab per instrument of the song; each
+  tab holds its own text editor, "convert chords over words", its PDFs and (for instruments) "Remove this part".
+- **Adding an instrument** is a select next to the tabs (only instruments the song does not have yet); it opens the new tab.
+  Removing a part that has text or PDFs asks first; nothing is deleted before "Save", as before.
+- **Tabs** for lead and bass are plain ChordPro: `{start_of_tab}` … `{end_of_tab}` was already rendered in monospace.
+- The save bar sticks to the bottom of the screen, so saving never needs a scroll.
