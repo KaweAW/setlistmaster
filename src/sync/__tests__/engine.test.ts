@@ -203,6 +203,17 @@ describe('live changes', () => {
     expect((await b.store.songs.get(any!.id))!.title).toBe(before);
   });
 
+  it('tells listeners which records a bandmate changed', async () => {
+    const seen: string[][] = [];
+    b.store.sync.onRemoteApplied((ids) => seen.push(ids));
+    const creep = await song(a, 'Creep');
+    a.clock.t += 1000;
+    await a.store.songs.update(creep.id, { notes: 'flash me' });
+    await a.engine.syncBand(bandId);
+    await b.engine.syncBand(bandId);
+    expect(seen.flat()).toContain(creep.id);
+  });
+
   it('forgets a band when it is unlinked', async () => {
     await b.store.sync.unlinkBand(bandId);
     b.clock.t += 1000;

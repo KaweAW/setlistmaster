@@ -18,11 +18,14 @@ export function ChordChart({
   semitones,
   accidentals,
   fontSize,
+  stage = false,
 }: {
   chart: ParsedChart;
   semitones: number;
   accidentals: Accidentals;
   fontSize: number;
+  /** On stage the chords become bold pills and sections get more air, to read at arm's length. */
+  stage?: boolean;
 }) {
   const t = useT();
   const show = (chord: string) => transposeChord(chord, semitones, accidentals);
@@ -46,7 +49,7 @@ export function ChordChart({
         const labelKey = SECTION_LABELS[line.section];
         const text = line.text || (labelKey ? t(labelKey) : '');
         return text ? (
-          <h3 key={index} className="mb-1 mt-5 font-display text-[0.75em] font-bold uppercase tracking-widest text-soft">{text}</h3>
+          <h3 key={index} className={`mb-1 ${stage ? 'mt-8' : 'mt-5'} font-display text-[0.75em] font-bold uppercase tracking-widest text-soft`}>{text}</h3>
         ) : null;
       }
       case 'lyrics': {
@@ -60,7 +63,7 @@ export function ChordChart({
           <div key={index} className={`flex flex-wrap ${accent}`}>
             {line.segments.map((segment, i) => (
               <span key={i} className="inline-flex flex-col">
-                <span className="mr-[0.5em] min-h-[1.25em] whitespace-pre font-bold leading-tight text-chord">
+                <span className={`mr-[0.5em] min-h-[1.25em] whitespace-pre font-bold leading-tight text-chord ${stage ? 'chord-pill' : ''}`}>
                   {segment.chord ? show(segment.chord) : '\u00a0'}
                 </span>
                 <span className="whitespace-pre-wrap">{segment.lyrics === '' ? '\u00a0' : segment.lyrics}</span>
@@ -73,7 +76,7 @@ export function ChordChart({
   };
 
   return (
-    <div style={{ fontSize }} className="leading-snug">
+    <div style={{ fontSize }} className={stage ? 'leading-normal' : 'leading-snug'}>
       {chart.lines.map(renderLine)}
     </div>
   );

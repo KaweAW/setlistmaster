@@ -102,6 +102,8 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
     Object.entries(roles).forEach(([id, role]) => roleMap.set(id, role));
   }, [roles, roleMap]);
   const bump = useDataRevision((s) => s.bump);
+  const flash = useDataRevision((s) => s.flash);
+  useEffect(() => store.sync.onRemoteApplied(flash), [store, flash]);
 
   const engine = useMemo(
     () =>

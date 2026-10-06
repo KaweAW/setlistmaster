@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useT } from '../i18n';
 
 function Stepper({
@@ -48,6 +49,9 @@ export interface SongToolbarProps {
   onTogglePlay: () => void;
   scrollLevel: number;
   onScrollLevel: (n: number) => void;
+  /** The next song of the setlist: always one big tap away. */
+  next?: { title: string; to: string };
+  stage?: boolean;
 }
 
 /** Fixed bottom bar. Auto-scroll is always at hand; the other controls fold away to leave room for the music. */
@@ -92,6 +96,16 @@ export function SongToolbar(p: SongToolbarProps) {
               onInc={() => p.onFontSize(p.fontSize + 2)}
             />
           </div>
+        )}
+        {p.next && (
+          <Link
+            to={p.next.to}
+            replace
+            className={`mb-2 flex w-full items-center justify-between gap-3 rounded-md bg-lei px-4 font-semibold text-white active:opacity-80 ${p.stage ? 'min-h-[3.75rem] text-xl' : 'min-h-[2.75rem] text-base'}`}
+          >
+            <span className="truncate">{t('chart.nextUp', { title: p.next.title })}</span>
+            <span aria-hidden>→</span>
+          </Link>
         )}
         <div className="flex items-end gap-3">
           <button

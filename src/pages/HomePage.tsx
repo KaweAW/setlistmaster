@@ -1,3 +1,4 @@
+import { RemoteFlash } from '../components/RemoteFlash';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDate, formatTotalDuration } from '../core/format';
@@ -79,7 +80,8 @@ export default function HomePage() {
     ].filter(Boolean);
     const menuOpen = openMenu === s.id;
     return (
-      <li key={s.id} className="py-1">
+      <li key={s.id} className="relative py-1">
+        <RemoteFlash id={s.id} />
         <div className="flex items-center gap-2">
           <Link to={`/setlist/${s.id}`} className="min-h-[56px] min-w-0 flex-1 py-2 active:bg-line/30">
             <div className="truncate font-display text-xl font-bold uppercase leading-tight tracking-wide">{s.title}</div>
@@ -95,7 +97,7 @@ export default function HomePage() {
           </Button>}
         </div>
         {menuOpen && (
-          <div className="mb-2 flex flex-wrap gap-2 motion-safe:animate-rise-in">
+          <div className="mb-2 flex flex-wrap gap-2 slide-open">
             <Button variant="secondary" onClick={() => void duplicate(s)}>{t('action.duplicate')}</Button>
             <Button variant="secondary" onClick={() => void toggleArchive(s)}>
               {s.archived ? t('action.unarchive') : t('action.archive')}

@@ -23,6 +23,7 @@ export class DexieSyncStore implements SyncStore {
   private readonly linked = new Set<string>();
   private readonly ready: Promise<void>;
   private readonly listeners = new Set<(bandId: string) => void>();
+  private readonly remoteListeners = new Set<(ids: string[]) => void>();
 
   constructor(private readonly db: ScalettaDb) {
     this.ready = db.syncBands.toArray().then((rows) => rows.forEach((r) => this.linked.add(r.bandId)));
@@ -115,6 +116,7 @@ export class DexieSyncStore implements SyncStore {
     await this.ready;
     const { db } = this;
     let applied = 0;
+    const changed: string[] = [];
     await db.transaction('rw', [db.performers, db.tunings, db.instruments, db.parts, db.attachments, db.files, db.songs, db.setlists, db.blocks, db.items, db.outbox], async () => {
       for (const record of records) {
         if (!this.linked.has(record.bandId)) continue; // only bands we sync
@@ -130,8 +132,10 @@ export class DexieSyncStore implements SyncStore {
         const queued = await db.outbox.get(`${record.kind}:${record.id}`);
         if (queued && queued.updatedAt <= record.updatedAt) await db.outbox.delete(queued.key);
         applied++;
+        changed.push(record.id);
       }
     });
+    if (changed.length > 0) this.remoteListeners.forEach((listener) => listener(changed));
     return applied;
   }
 
@@ -164,6 +168,11 @@ export class DexieSyncStore implements SyncStore {
       id: attachment.id, bandId: attachment.bandId, name: attachment.name, mimeType: attachment.mimeType, size: attachment.size,
       songId: attachment.songId, instrumentId: attachment.instrumentId, createdAt: attachment.createdAt, uploaded: true, data,
     });
+  }
+
+  onRemoteApplied(listener: (ids: string[]) => void): () => void {
+    this.remoteListeners.add(listener);
+    return () => this.remoteListeners.delete(listener);
   }
 
   onLocalChange(listener: (bandId: string) => void): () => void {
