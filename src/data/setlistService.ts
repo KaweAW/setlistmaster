@@ -25,7 +25,7 @@ export async function createSetlist(
     bandId, title: names.title, venue: '', notes: '', archived: false,
   });
   await store.blocks.create({
-    bandId, setlistId: setlist.id, name: names.firstBlock, subtitle: '', position: positionBetween(null, null),
+    bandId, setlistId: setlist.id, name: names.firstBlock, subtitle: '', reserve: false, position: positionBetween(null, null),
   });
   return setlist;
 }

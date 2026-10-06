@@ -104,6 +104,8 @@ export const blockSchema = z.object({
   setlistId: id,
   name: z.string().min(1),
   subtitle: z.string().default(''),
+  /** A reserve block (encores, spare songs): shown apart and left out of the totals. */
+  reserve: z.boolean().default(false),
   position,
 });
 

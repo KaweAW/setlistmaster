@@ -259,7 +259,7 @@ function SortableBlock({
   items: SetlistItem[];
   lookups: Lookups;
   activeId: string | undefined;
-  onRename: (patch: { name?: string; subtitle?: string }) => void;
+  onRename: (patch: { name?: string; subtitle?: string; reserve?: boolean }) => void;
   onRemove: () => void;
   onEditItem: (id: string) => void;
   onAddSong: () => void;
@@ -272,7 +272,7 @@ function SortableBlock({
     <section
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-lg border border-line bg-white/60 p-3 ${isDragging ? 'opacity-40' : ''}`}
+      className={`rounded-lg border p-3 ${block.reserve ? 'border-dashed border-soft/60 bg-line/20' : 'border-line bg-white/60'} ${isDragging ? 'opacity-40' : ''}`}
     >
       <div key={block.updatedAt} className="mb-2 flex items-start gap-2">
         <button
@@ -308,6 +308,11 @@ function SortableBlock({
           ✕
         </Button>
       </div>
+
+      <label className="mb-2 ml-[3.25rem] flex items-center gap-2 text-sm text-soft">
+        <input type="checkbox" checked={block.reserve} onChange={(e) => onRename({ reserve: e.target.checked })} className="h-5 w-5" />
+        {t('edit.reserve')}
+      </label>
 
       <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
         {items.length === 0 ? (

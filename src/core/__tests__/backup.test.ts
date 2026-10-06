@@ -18,7 +18,7 @@ const snapshot = (): StoreSnapshot => ({
     chordpro: '[Am]Спокойная [G]ночь', pdfBlobId: 'f1', notes: '', tags: ['rock'], durationSec: 230,
   }],
   setlists: [{ ...base, id: 'l1', title: 'Live', date: '2026-10-03', venue: 'Club', notes: '', archived: false }],
-  blocks: [{ ...base, id: 'k1', setlistId: 'l1', name: 'Blocco 1', subtitle: '', position: 'a0' }],
+  blocks: [{ ...base, id: 'k1', setlistId: 'l1', name: 'Blocco 1', subtitle: '', reserve: false, position: 'a0' }],
   items: [{
     ...base, id: 'i1', setlistId: 'l1', blockId: 'k1', songId: 's1', position: 'a0', performerIds: [],
     performerNote: 'io o lei', transitionType: 'segue', transitionText: 'Fine → **Next**', notes: '',

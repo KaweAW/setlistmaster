@@ -115,7 +115,7 @@ export function PosterHeader({
   const t = useT();
   const language = useUiStore((s) => s.language);
   const { setlist } = tree;
-  const stats = setlistStats(tree.items, songs);
+  const stats = setlistStats(tree.items, songs, new Set(tree.blocks.filter((b) => b.reserve).map((b) => b.id)));
   const legend = computeLegend(tree.items, songs, performers, tunings);
   const duration =
     stats.durationSec > 0
@@ -145,6 +145,11 @@ export function PosterBlockHeading({ block, continued = false }: { block: Block;
   return (
     <h2 className="flex items-baseline gap-2.5 pb-[2mm] font-display text-[21px] font-bold uppercase tracking-[0.04em] after:h-px after:flex-1 after:self-center after:bg-line after:content-['']">
       {block.name}
+      {block.reserve && (
+        <small className="rounded border border-dashed border-soft px-1.5 font-sans text-[11px] font-semibold normal-case tracking-normal text-soft">
+          {t('block.reserve')}
+        </small>
+      )}
       {continued ? (
         <small className="font-sans text-[13px] font-normal normal-case italic tracking-normal text-soft">
           {t('print.continued')}

@@ -42,6 +42,7 @@ export function addBlock(tree: SetlistTree, ctx: OpContext, name: string, subtit
     setlistId: tree.setlist.id,
     name,
     subtitle,
+    reserve: false,
     position: positionBetween(last?.position ?? null, null),
     createdAt: ctx.now,
     updatedAt: ctx.now,
@@ -53,7 +54,7 @@ export function updateBlock(
   tree: SetlistTree,
   ctx: OpContext,
   blockId: string,
-  patch: Partial<Pick<Block, 'name' | 'subtitle'>>,
+  patch: Partial<Pick<Block, 'name' | 'subtitle' | 'reserve'>>,
 ): SetlistTree {
   return {
     ...tree,

@@ -334,3 +334,14 @@ and what still has to be tried by hand on real devices.
   your own edits.
 - **Motion**: the "⋯" menu slides open, dragged setlist items settle with a short drop animation. Everything is disabled for
   people who prefer reduced motion (`motion-safe` / `prefers-reduced-motion`).
+
+## Phase 12 — Metronome and reserve blocks
+
+- **Metronome**: a "♩ tempo" button next to the part selector opens a small panel under the header. It starts at the song's tempo
+  (100 if none), has −/+ 1 BPM, tap tempo (last 6 taps, a pause over 2 s restarts) and four beat lights; the first beat of each
+  bar is higher. Clicks are scheduled on the Web Audio clock with a short look-ahead, so scrolling never makes it stagger. The
+  BPM set here is not saved to the song; edit the song to change its tempo.
+- **Reserve block**: `reserve` flag on a setlist block (default false, so old data and old backups need no migration; it syncs
+  with the block). It is meant for encores and spare songs: dashed, muted card in the editor, a "Reserve" tag on the printed
+  sheet, and its songs are left out of the song count and total duration.
+- Bookmarks for rehearsal stay the sticky notes (phase 10).
