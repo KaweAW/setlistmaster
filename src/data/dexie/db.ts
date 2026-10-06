@@ -64,5 +64,14 @@ export class ScalettaDb extends Dexie {
     this.version(3).stores({ outbox: 'key, bandId', syncBands: 'bandId' });
     // v4 (phase 7): instruments and per-instrument parts of a song.
     this.version(4).stores({ instruments: 'id, bandId', parts: 'id, bandId, songId' });
+    // v5: a song can have several PDFs, each for the text or for one instrument: index them by song, and tag the old ones.
+    this.version(5)
+      .stores({ files: 'id, bandId, songId' })
+      .upgrade(async (tx) => {
+        const songs = await tx.table('songs').toArray();
+        for (const song of songs as { id: string; pdfBlobId?: string }[]) {
+          if (song.pdfBlobId) await tx.table('files').update(song.pdfBlobId, { songId: song.id });
+        }
+      });
   }
 }

@@ -101,8 +101,8 @@ describe('song form', () => {
     });
     expect(tunings.find((x) => x.id === saved.tuningId)?.name).toBe('Drop C');
     expect(saved.defaultPerformerIds).toHaveLength(1);
-    const stored = await store.files.get(saved.pdfBlobId!);
-    expect(stored?.name).toBe('sun.pdf');
+    const stored = await store.files.listBySong(saved.id);
+    expect(stored.map((f) => [f.name, f.instrumentId])).toEqual([['sun.pdf', undefined]]);
   });
 
   it('rejects an invalid duration', async () => {

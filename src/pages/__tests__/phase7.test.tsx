@@ -81,6 +81,69 @@ describe('instruments in the settings', () => {
   });
 });
 
+describe('PDFs of a part', () => {
+  const pdfFile = (name: string) => {
+    const file = new File([new Uint8Array([37, 80, 68, 70])], name, { type: 'application/pdf' });
+    if (!file.arrayBuffer) Object.defineProperty(file, 'arrayBuffer', { value: async () => new Uint8Array([37, 80, 68, 70]).buffer });
+    return file;
+  };
+
+  it('are added several at a time, to the text and to an instrument, and removed again', async () => {
+    const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
+    const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
+    await screen.findByLabelText('Title');
+    fireEvent.click(screen.getByRole('button', { name: 'Bass' }));
+    fireEvent.change(await screen.findByLabelText('Add PDF for Bass'), { target: { files: [pdfFile('bass1.pdf'), pdfFile('bass2.pdf')] } });
+    fireEvent.change(screen.getByLabelText('Add PDF for the text'), { target: { files: [pdfFile('text.pdf')] } });
+    expect(await screen.findByText(/bass2\.pdf/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () => expect(await store.files.listBySong(song.id)).toHaveLength(3));
+    const files = await store.files.listBySong(song.id);
+    expect(files.filter((f) => f.instrumentId === bass.id).map((f) => f.name).sort()).toEqual(['bass1.pdf', 'bass2.pdf']);
+    expect(files.filter((f) => f.instrumentId === undefined).map((f) => f.name)).toEqual(['text.pdf']);
+  });
+
+  it('are chosen from a list on the song page, per part', async () => {
+    const store = createDexieStore({ dbName: `ui7-${++n}` });
+    const band = await bootstrap(store, undefined, null, 'en');
+    const song = (await store.songs.listBy('bandId', band.id))[0]!;
+    const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
+    await store.songs.update(song.id, { instrumentIds: [bass.id] });
+    const put = (id: string, name: string, instrumentId?: string) =>
+      store.files.put({ id, bandId: band.id, songId: song.id, instrumentId, name, mimeType: 'application/pdf', size: 4, data: new Uint8Array([37]).buffer, createdAt: Number(id.slice(1)) });
+    await put('f1', 'text.pdf');
+    await put('f2', 'bass-a.pdf', bass.id);
+    await put('f3', 'bass-b.pdf', bass.id);
+    render(
+      <MemoryRouter initialEntries={[`/song/${song.id}`]}>
+        <DataProvider store={store}><AppRoutes /></DataProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.change(await screen.findByLabelText('Part'), { target: { value: bass.id } });
+    const choose = (await screen.findByLabelText('PDF of this part')) as HTMLSelectElement;
+    expect([...choose.options].map((o) => o.textContent)).toEqual(['bass-a.pdf', 'bass-b.pdf']);
+    fireEvent.change(choose, { target: { value: 'f3' } });
+    expect(choose.value).toBe('f3');
+    fireEvent.change(screen.getByLabelText('Part'), { target: { value: 'text' } });
+    expect(screen.queryByLabelText('PDF of this part')).toBeNull(); // one PDF: nothing to choose
+  });
+
+  it('are tagged with their song when an old backup is read', () => {
+    const base = { bandId: 'b', createdAt: 1, updatedAt: 1 };
+    const old = {
+      format: 'scaletta-backup', version: 2, exportedAt: 1,
+      data: {
+        bands: [{ id: 'b', createdAt: 1, updatedAt: 1, name: 'B' }],
+        songs: [{ ...base, id: 's1', title: 'X', tuningId: 't', pdfBlobId: 'f1' }],
+        files: [{ id: 'f1', bandId: 'b', name: 'a.pdf', mimeType: 'application/pdf', size: 1, createdAt: 1, dataBase64: 'JQ==' }],
+      },
+    };
+    const parsed = parseBackup(JSON.stringify(old));
+    expect(parsed.ok && parsed.snapshot.files[0]?.songId).toBe('s1');
+  });
+});
+
 describe('parts of a song', () => {
   it('are written in the song form and shown as tabs, opening on my instrument', async () => {
     const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
@@ -112,17 +175,18 @@ describe('parts of a song', () => {
         </MemoryRouter>,
       );
     view();
-    const tabs = await screen.findByRole('tablist');
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text', 'Bass']);
+    const select = (await screen.findByLabelText('Part')) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(['Only text', 'Bass']);
+    expect(select.value).toBe('text');
     expect(screen.getByText('plain')).toBeTruthy();
-    fireEvent.click(within(tabs).getByRole('tab', { name: 'Bass' }));
+    fireEvent.change(select, { target: { value: bass.id } });
     expect(await screen.findByText('line', { exact: false })).toBeTruthy();
     expect(screen.queryByText('plain')).toBeNull();
 
     cleanup();
     useUiStore.setState({ myInstruments: { [band.id]: bass.id } });
     view();
-    expect((await screen.findByRole('tab', { name: 'Bass' })).getAttribute('aria-selected')).toBe('true');
+    expect(((await screen.findByLabelText('Part')) as HTMLSelectElement).value).toBe(bass.id);
   });
 
   it('travel in a backup', async () => {

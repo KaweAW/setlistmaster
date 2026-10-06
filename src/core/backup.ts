@@ -6,7 +6,7 @@ import type { StoreSnapshot } from './types';
 
 export const BACKUP_FORMAT = 'scaletta-backup';
 /** Bump when the file layout changes; older versions must keep loading (see parseBackup). */
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 /** PDFs travel inside the JSON as base64, so a single file holds everything. */
 const attachmentSchema = z.object({
@@ -16,6 +16,8 @@ const attachmentSchema = z.object({
   mimeType: z.string(),
   size: z.number().int().nonnegative(),
   createdAt: z.number().int().nonnegative(),
+  songId: z.string().min(1).optional(),
+  instrumentId: z.string().min(1).optional(),
   dataBase64: z.string(),
 });
 
@@ -116,9 +118,15 @@ export function parseBackup(text: string): BackupParseResult {
   const { files, ...records } = parsed.data.data;
   let snapshot: StoreSnapshot;
   try {
+    // Backups from before PDFs belonged to songs: the song that points at a file owns it.
+    const owner = new Map(records.songs.flatMap((s) => (s.pdfBlobId ? [[s.pdfBlobId, s.id] as const] : [])));
     snapshot = {
       ...records,
-      files: files.map(({ dataBase64, ...meta }) => ({ ...meta, data: base64ToBytes(dataBase64) })),
+      files: files.map(({ dataBase64, ...meta }) => ({
+        ...meta,
+        songId: meta.songId ?? owner.get(meta.id),
+        data: base64ToBytes(dataBase64),
+      })),
     };
   } catch {
     return { ok: false, error: 'invalid-data' }; // a PDF that is not valid base64

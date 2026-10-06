@@ -45,6 +45,8 @@ export interface Repository<T extends BaseEntity> {
 /** Binary attachments (PDF charts). Kept apart from the entity repositories: hard delete, no validation. */
 export interface FileRepository {
   get(id: string): Promise<StoredFile | undefined>;
+  /** Every PDF of a song (all parts), oldest first. */
+  listBySong(songId: string): Promise<StoredFile[]>;
   put(file: StoredFile): Promise<void>;
   remove(id: string): Promise<void>;
 }

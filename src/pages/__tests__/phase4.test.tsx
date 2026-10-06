@@ -117,8 +117,7 @@ describe('song page', () => {
     const { store, band, song } = await setup(({ songId }) => `/song/${songId}`);
     await screen.findByRole('heading', { name: 'Fortunate Son' });
     cleanup();
-    await store.files.put({ id: 'pdf1', bandId: band.id, name: 'a.pdf', mimeType: 'application/pdf', size: 4, data: new Uint8Array([37, 80, 68, 70]).buffer, createdAt: 1 });
-    await store.songs.update(song.id, { pdfBlobId: 'pdf1' });
+    await store.files.put({ id: 'pdf1', bandId: band.id, name: 'a.pdf', mimeType: 'application/pdf', size: 4, data: new Uint8Array([37, 80, 68, 70]).buffer, createdAt: 1, songId: song.id });
     render(
       <MemoryRouter initialEntries={[`/song/${song.id}`]}>
         <DataProvider store={store}><AppRoutes /></DataProvider>

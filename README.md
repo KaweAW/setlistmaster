@@ -12,7 +12,7 @@ It is a PWA, so it installs on iPhone, iPad and Mac and works with no internet a
 - **Setlists** in blocks, with drag and drop, transitions ("direct segue", "hard stop"), who sings each song, and alternate tunings.
 - **Song library** with search and filters, chord charts in ChordPro or chords-over-words, transposition and capo.
 - **Instrument parts**: every song has its plain text, and each instrument (lead, rhythm, bass, piano… you edit the list) can have its own chart, opening on the instrument you play.
-- **PDF charts** attached to songs, viewed offline.
+- **PDF charts** attached to songs (several per part, picked from a list), viewed offline.
 - **Stage mode**: dark screen, large text, screen kept awake, auto-scroll, no editing buttons.
 - **PDF export** of the setlist, laid out for A4.
 - **Works offline**: the whole app is cached after the first visit; data lives on the device (IndexedDB).
