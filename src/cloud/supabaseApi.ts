@@ -208,6 +208,12 @@ export function createSupabaseApi(): CloudApi {
     async leaveBand(bandId) {
       await rpc('leave_band', { p_band: bandId });
     },
+    async myInstrument(bandId) {
+      return (await rpc<string | null>('my_instrument', { p_band: bandId })) ?? null;
+    },
+    async setMyInstrument(bandId, instrumentId) {
+      await rpc('set_my_instrument', { p_band: bandId, p_instrument: instrumentId });
+    },
     async previewInvitation(token) {
       const rows = await rpc<{ band_name: string | null; role: InviteRole | null; email_bound: boolean; status: InvitationStatus }[]>(
         'invitation_preview', { p_token: token },

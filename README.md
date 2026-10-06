@@ -11,6 +11,7 @@ It is a PWA, so it installs on iPhone, iPad and Mac and works with no internet a
 
 - **Setlists** in blocks, with drag and drop, transitions ("direct segue", "hard stop"), who sings each song, and alternate tunings.
 - **Song library** with search and filters, chord charts in ChordPro or chords-over-words, transposition and capo.
+- **Instrument parts**: every song has its plain text, and each instrument (lead, rhythm, bass, piano… you edit the list) can have its own chart, opening on the instrument you play.
 - **PDF charts** attached to songs, viewed offline.
 - **Stage mode**: dark screen, large text, screen kept awake, auto-scroll, no editing buttons.
 - **PDF export** of the setlist, laid out for A4.
@@ -71,7 +72,7 @@ HTTPS is required for the PWA features, and every unknown path must return `inde
 Without a cloud project everything works on one device, and the sharing section simply says it is not set up.
 To enable it you need a free [Supabase](https://supabase.com) project:
 
-1. In the Supabase **SQL editor**, run `supabase/migrations/0001_cloud.sql` once.
+1. In the Supabase **SQL editor**, run `supabase/migrations/0001_cloud.sql` once, then `0002_instruments.sql` (new installs run both, in that order; if you already ran the first, run only the second).
 2. **Authentication > Providers**: keep Email on (optionally turn off "Confirm email").
    **Authentication > URL configuration**: set Site URL to the address of the published app.
 3. Copy the project URL and the public key (Project settings > API) into `VITE_SUPABASE_URL` and

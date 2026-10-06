@@ -5,7 +5,7 @@ import { accidentalsForKey, inferKey, transposeKey } from '../core/chords';
 import { chartChords, parseChordPro } from '../core/chordpro';
 import { effectivePerformerIds, effectiveTuningId } from '../core/legend';
 import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps';
-import type { Performer, SetlistItem, Song, Tuning } from '../core/types';
+import type { Instrument, Part, Performer, SetlistItem, Song, Tuning } from '../core/types';
 import { formatDuration } from '../core/format';
 import { ChordChart } from '../components/ChordChart';
 import { PerformerBadge } from '../components/PerformerBadge';
@@ -38,16 +38,18 @@ function SongPageInner({ songId, setlistId, itemId }: { songId?: string; setlist
   const { store, band } = useData();
 
   const { data, loading } = useQuery(async () => {
-    const [songs, performers, tunings] = await Promise.all([
+    const [songs, performers, tunings, instruments, parts] = await Promise.all([
       store.songs.listBy('bandId', band.id),
       store.performers.listBy('bandId', band.id),
       store.tunings.listBy('bandId', band.id),
+      store.instruments.listBy('bandId', band.id),
+      store.parts.listBy('bandId', band.id),
     ]);
     const tree = setlistId ? await loadTree(store, setlistId) : undefined;
     const item = tree?.items.find((i) => i.id === itemId);
     const song = songs.find((s) => s.id === (item?.songId ?? songId));
     const file = song?.pdfBlobId ? await store.files.get(song.pdfBlobId) : undefined;
-    return { songs, performers, tunings, tree, item, song, pdf: file?.data };
+    return { songs, performers, tunings, instruments, parts, tree, item, song, pdf: file?.data };
   }, [store, band.id, setlistId, itemId, songId]);
 
   if (loading || !data) return <p className="p-6 text-soft">{t('app.loading')}</p>;
@@ -65,12 +67,14 @@ function SongPageInner({ songId, setlistId, itemId }: { songId?: string; setlist
 }
 
 function SongView({
-  song, songs, performers, tunings, tree, item, pdf, setlistId,
+  song, songs, performers, tunings, instruments, parts, tree, item, pdf, setlistId,
 }: {
   song: Song;
   songs: Song[];
   performers: Performer[];
   tunings: Tuning[];
+  instruments: Instrument[];
+  parts: Part[];
   tree: SetlistTree | undefined;
   item: SetlistItem | undefined;
   pdf: ArrayBuffer | undefined;
@@ -87,9 +91,24 @@ function SongView({
   const setScrollLevel = useUiStore((s) => s.setScrollLevel);
 
   const lookups = useMemo(() => buildLookups(songs, performers, tunings), [songs, performers, tunings]);
-  const chart = useMemo(() => parseChordPro(song.chordpro), [song.chordpro]);
-  const hasChart = song.chordpro.trim() !== '';
+  // Tabs: the plain text is always there; each instrument of the song with a part adds one. Opens on my instrument.
+  const myInstrumentId = useUiStore((s) => s.myInstruments[song.bandId]);
+  const tabs = useMemo(
+    () =>
+      [...instruments]
+        .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+        .filter((i) => song.instrumentIds.includes(i.id))
+        .map((i) => ({ instrument: i, part: parts.find((p) => p.songId === song.id && p.instrumentId === i.id) }))
+        .filter((x): x is { instrument: Instrument; part: Part } => x.part !== undefined && x.part.chordpro.trim() !== ''),
+    [instruments, parts, song],
+  );
+  const [tab, setTab] = useState<string>(() => (tabs.some((x) => x.instrument.id === myInstrumentId) ? myInstrumentId! : 'text'));
+  const activePart = tabs.find((x) => x.instrument.id === tab)?.part;
+  const activeText = activePart ? activePart.chordpro : song.chordpro;
+  const chart = useMemo(() => parseChordPro(activeText), [activeText]);
+  const hasChart = activeText.trim() !== '';
   const [mode, setMode] = useState<'chords' | 'pdf'>(hasChart || !pdf ? 'chords' : 'pdf');
+  const onText = activePart === undefined;
   const [semitones, setSemitones] = useState(0);
   const [capo, setCapo] = useState(song.capo);
   const [playing, setPlaying] = useState(false);
@@ -119,7 +138,7 @@ function SongView({
     [navigate, setlistId],
   );
   const onSwipe = (direction: SwipeDirection) => go(direction === 'next' ? next : previous);
-  const swipe = useSwipe(onSwipe, mode === 'chords');
+  const swipe = useSwipe(onSwipe, mode === 'chords' || !onText);
 
   const stop = useCallback(() => setPlaying(false), []);
   useAutoScroll(playing, scrollLevel, stop);
@@ -204,7 +223,7 @@ function SongView({
             })}
             {item?.performerNote && <span className="ml-1 text-[11px] italic text-soft">{item.performerNote}</span>}
           </span>
-          {hasChart && pdf && (
+          {onText && hasChart && pdf && (
             <span role="group" className="ml-auto inline-flex overflow-hidden rounded-md border border-line">
               {(['chords', 'pdf'] as const).map((m) => (
                 <button
@@ -230,15 +249,32 @@ function SongView({
           <p key={i} className="mb-2 whitespace-pre-wrap text-sm italic text-soft">{note}</p>
         ))}
 
-        {mode === 'chords' && hasChart && (
+        {tabs.length > 0 && (
+          <div role="tablist" aria-label={t('part.tabs')} className="mb-3 flex gap-1 overflow-x-auto">
+            {[{ id: 'text', label: t('part.text') }, ...tabs.map((x) => ({ id: x.instrument.id, label: x.instrument.name }))].map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === x.id}
+                onClick={() => setTab(x.id)}
+                className={`h-11 shrink-0 rounded-md px-4 text-sm font-semibold ${tab === x.id ? 'bg-ink text-paper' : 'border border-line bg-surface text-ink'}`}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(mode === 'chords' || !onText) && hasChart && (
           <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} />
         )}
-        {mode === 'pdf' && pdf && (
+        {onText && mode === 'pdf' && pdf && (
           <Suspense fallback={<p className="py-6 text-center text-soft">{t('chart.loadingPdf')}</p>}>
             <PdfViewer data={pdf} />
           </Suspense>
         )}
-        {!hasChart && !pdf && (
+        {!hasChart && !(onText && pdf) && (
           <div className="py-12 text-center">
             <p className="mb-4 text-soft">{t('chart.empty')}</p>
             <Link to={`/library/${song.id}`} className={buttonClass('primary')}>{t('chart.emptyAction')}</Link>
@@ -259,7 +295,7 @@ function SongView({
       </main>
 
       <SongToolbar
-        showChartControls={mode === 'chords' && hasChart}
+        showChartControls={(mode === 'chords' || !onText) && hasChart}
         semitones={semitones}
         onSemitones={setSemitones}
         capo={capo}

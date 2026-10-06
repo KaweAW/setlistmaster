@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import {
-  bandSchema, blockSchema, memberSchema, performerSchema, setlistItemSchema, setlistSchema, songSchema, tuningSchema,
+  bandSchema, blockSchema, instrumentSchema, memberSchema, partSchema, performerSchema, setlistItemSchema, setlistSchema, songSchema, tuningSchema,
 } from './schemas';
 import type { StoreSnapshot } from './types';
 
 export const BACKUP_FORMAT = 'scaletta-backup';
 /** Bump when the file layout changes; older versions must keep loading (see parseBackup). */
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 /** PDFs travel inside the JSON as base64, so a single file holds everything. */
 const attachmentSchema = z.object({
@@ -28,6 +28,8 @@ const backupSchema = z.object({
     members: z.array(memberSchema).default([]),
     performers: z.array(performerSchema).default([]),
     tunings: z.array(tuningSchema).default([]),
+    instruments: z.array(instrumentSchema).default([]),
+    parts: z.array(partSchema).default([]),
     songs: z.array(songSchema).default([]),
     setlists: z.array(setlistSchema).default([]),
     blocks: z.array(blockSchema).default([]),

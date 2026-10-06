@@ -103,7 +103,7 @@ export async function seedBand(store: DataStore, bandId: string): Promise<void> 
         artist: seedSong.artist,
         capo: 0,
         tuningId: tuningId[seedSong.tuning ?? 'standard'],
-        defaultPerformerIds: performerIds,
+        defaultPerformerIds: performerIds, instrumentIds: [],
         chordpro: '',
         notes: '',
         tags: [],

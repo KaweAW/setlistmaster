@@ -32,7 +32,7 @@ function mount(path: string, api: CloudApi | null, store = createDexieStore({ db
 
 beforeEach(() => {
   window.scrollTo = vi.fn();
-  useUiStore.setState({ language: 'en', stageMode: false, activeBandId: null });
+  useUiStore.setState({ language: 'en', stageMode: false, activeBandId: null, myInstruments: {} });
 });
 afterEach(cleanup);
 
@@ -80,6 +80,24 @@ describe('sharing screen', () => {
     expect(await screen.findByText(/Your role: editor/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Create invitation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+});
+
+describe('the instrument I play', () => {
+  it('is kept on my account, and a new device learns it', async () => {
+    const server = new FakeCloudServer();
+    const store = mount('/settings', server.as(KAWE));
+    fireEvent.click(await screen.findByRole('button', { name: 'Share this band' }));
+    await screen.findByText(/Your role: creator/);
+    const band = (await store.bands.listAll())[0]!;
+    const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
+    fireEvent.change(await screen.findByLabelText('The instrument I play'), { target: { value: bass.id } });
+    await waitFor(() => expect(server.instruments.get(`${band.id}:${KAWE.id}`)).toBe(bass.id));
+
+    cleanup();
+    useUiStore.setState({ myInstruments: {} }); // a fresh device: nothing remembered locally
+    mount('/settings', server.as(KAWE), store);
+    await waitFor(() => expect(useUiStore.getState().myInstruments[band.id]).toBe(bass.id));
   });
 });
 

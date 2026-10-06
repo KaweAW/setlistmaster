@@ -28,7 +28,7 @@ export function DataProvider({
 
   useEffect(() => {
     let cancelled = false;
-    bootstrap(store, undefined, activeBandId)
+    bootstrap(store, undefined, activeBandId, useUiStore.getState().language)
       .then((band) => {
         if (!cancelled) setState({ band });
         void useStorageStore.getState().check(); // ask the browser to keep our data (see NoticeBar)

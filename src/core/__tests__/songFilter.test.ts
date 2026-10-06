@@ -12,7 +12,7 @@ const song = (over: Partial<Song> & { title: string }): Song => ({
   artist: '',
   capo: 0,
   tuningId: 'std',
-  defaultPerformerIds: [],
+  defaultPerformerIds: [], instrumentIds: [],
   chordpro: '',
   notes: '',
   tags: [],

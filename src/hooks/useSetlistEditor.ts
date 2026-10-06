@@ -114,7 +114,7 @@ export function useSetlistEditor(setlistId: string | undefined) {
         artist,
         capo: 0,
         tuningId: standard?.id ?? '',
-        defaultPerformerIds: [],
+        defaultPerformerIds: [], instrumentIds: [],
         chordpro: '',
         notes: '',
         tags: [],

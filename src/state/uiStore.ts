@@ -23,6 +23,9 @@ interface UiState {
   lastBackupAt: number | null;
   firstSeenAt: number | null;
   backupSnoozedUntil: number | null;
+  /** The instrument I play (a song opens on its part). Mirrored on the account when signed in; this is the offline copy. */
+  myInstruments: Record<string, string>;
+  setMyInstrument: (bandId: string, instrumentId: string | null) => void;
   setActiveBandId: (id: string | null) => void;
   setLanguage: (language: Language) => void;
   setTheme: (theme: Theme) => void;
@@ -54,6 +57,14 @@ export const useUiStore = create<UiState>()(
       lastBackupAt: null,
       firstSeenAt: null,
       backupSnoozedUntil: null,
+      myInstruments: {},
+      setMyInstrument: (bandId, instrumentId) =>
+        set((s) => {
+          const next = { ...s.myInstruments };
+          if (instrumentId) next[bandId] = instrumentId;
+          else delete next[bandId];
+          return { myInstruments: next };
+        }),
       setActiveBandId: (activeBandId) => set({ activeBandId }),
       setLanguage: (language) => set({ language }),
       setTheme: (theme) => set({ theme }),
@@ -70,6 +81,7 @@ export const useUiStore = create<UiState>()(
         language: s.language,
         theme: s.theme,
         activeBandId: s.activeBandId,
+        myInstruments: s.myInstruments,
         stageMode: s.stageMode,
         songFontSize: s.songFontSize,
         stageFontSize: s.stageFontSize,

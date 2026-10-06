@@ -3,7 +3,9 @@ import type { SyncKind } from '../../core/sync';
 import type {
   Band,
   Block,
+  Instrument,
   Member,
+  Part,
   Performer,
   Setlist,
   SetlistItem,
@@ -33,6 +35,8 @@ export class ScalettaDb extends Dexie {
   members!: EntityTable<Member, 'id'>;
   performers!: EntityTable<Performer, 'id'>;
   tunings!: EntityTable<Tuning, 'id'>;
+  instruments!: EntityTable<Instrument, 'id'>;
+  parts!: EntityTable<Part, 'id'>;
   songs!: EntityTable<Song, 'id'>;
   setlists!: EntityTable<Setlist, 'id'>;
   blocks!: EntityTable<Block, 'id'>;
@@ -58,5 +62,7 @@ export class ScalettaDb extends Dexie {
     this.version(2).stores({ files: 'id, bandId' });
     // v3 (phase 6): cloud sync bookkeeping.
     this.version(3).stores({ outbox: 'key, bandId', syncBands: 'bandId' });
+    // v4 (phase 7): instruments and per-instrument parts of a song.
+    this.version(4).stores({ instruments: 'id, bandId', parts: 'id, bandId, songId' });
   }
 }

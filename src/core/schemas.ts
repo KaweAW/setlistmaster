@@ -40,6 +40,14 @@ export const tuningSchema = z.object({
   isStandard: z.boolean().default(false),
 });
 
+/** A way to play in the band (lead guitar, bass, piano…). The plain text/chords of a song is always there; instruments add parts. */
+export const instrumentSchema = z.object({
+  ...scopedShape,
+  name: z.string().min(1),
+  /** Display order (ascending). */
+  order: z.number().int().nonnegative().default(0),
+});
+
 export const songSchema = z.object({
   ...scopedShape,
   title: z.string().min(1),
@@ -53,8 +61,19 @@ export const songSchema = z.object({
   /** Lyrics with chords, ChordPro format. */
   chordpro: z.string().default(''),
   pdfBlobId: id.optional(),
+  /** Instruments that have their own part in this song (the plain text is always there). */
+  instrumentIds: z.array(id).default([]),
   notes: z.string().default(''),
   tags: z.array(z.string()).default([]),
+});
+
+/** The chart of one instrument for one song. Its id is derived from song + instrument, so there is at most one. */
+export const partSchema = z.object({
+  ...scopedShape,
+  songId: id,
+  instrumentId: id,
+  chordpro: z.string().default(''),
+  notes: z.string().default(''),
 });
 
 export const setlistSchema = z.object({

@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import type {
   bandSchema,
+  instrumentSchema,
+  partSchema,
   blockSchema,
   memberRoleSchema,
   memberSchema,
@@ -17,6 +19,8 @@ export type MemberRole = z.infer<typeof memberRoleSchema>;
 export type Member = z.infer<typeof memberSchema>;
 export type Performer = z.infer<typeof performerSchema>;
 export type Tuning = z.infer<typeof tuningSchema>;
+export type Instrument = z.infer<typeof instrumentSchema>;
+export type Part = z.infer<typeof partSchema>;
 export type Song = z.infer<typeof songSchema>;
 export type Setlist = z.infer<typeof setlistSchema>;
 export type Block = z.infer<typeof blockSchema>;
@@ -48,6 +52,8 @@ export interface StoreSnapshot {
   members: Member[];
   performers: Performer[];
   tunings: Tuning[];
+  instruments: Instrument[];
+  parts: Part[];
   songs: Song[];
   setlists: Setlist[];
   blocks: Block[];

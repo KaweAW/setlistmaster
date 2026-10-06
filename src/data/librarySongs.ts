@@ -35,7 +35,7 @@ export async function addLibrarySongs(store: DataStore, bandId: string): Promise
     if (await store.songs.has(id)) continue;
     await store.songs.create({
       id, bandId, title: song.title, artist: song.artist, capo: 0, tuningId: standard.id,
-      defaultPerformerIds: [], chordpro: '', notes: '', tags: [],
+      defaultPerformerIds: [], instrumentIds: [], chordpro: '', notes: '', tags: [],
     });
   }
 }

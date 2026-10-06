@@ -119,6 +119,8 @@ class DexieBulkStore implements BulkStore {
       members: await live(db.members, s.memberSchema),
       performers: await live(db.performers, s.performerSchema),
       tunings: await live(db.tunings, s.tuningSchema),
+      instruments: await live(db.instruments, s.instrumentSchema),
+      parts: await live(db.parts, s.partSchema),
       songs: await live(db.songs, s.songSchema),
       setlists: await live(db.setlists, s.setlistSchema),
       blocks: await live(db.blocks, s.blockSchema),
@@ -134,6 +136,8 @@ class DexieBulkStore implements BulkStore {
       members: snapshot.members.map((r) => s.memberSchema.parse(r)),
       performers: snapshot.performers.map((r) => s.performerSchema.parse(r)),
       tunings: snapshot.tunings.map((r) => s.tuningSchema.parse(r)),
+      instruments: snapshot.instruments.map((r) => s.instrumentSchema.parse(r)),
+      parts: snapshot.parts.map((r) => s.partSchema.parse(r)),
       songs: snapshot.songs.map((r) => s.songSchema.parse(r)),
       setlists: snapshot.setlists.map((r) => s.setlistSchema.parse(r)),
       blocks: snapshot.blocks.map((r) => s.blockSchema.parse(r)),
@@ -148,6 +152,8 @@ class DexieBulkStore implements BulkStore {
       await db.members.bulkPut(valid.members);
       await db.performers.bulkPut(valid.performers);
       await db.tunings.bulkPut(valid.tunings);
+      await db.instruments.bulkPut(valid.instruments);
+      await db.parts.bulkPut(valid.parts);
       await db.songs.bulkPut(valid.songs);
       await db.setlists.bulkPut(valid.setlists);
       await db.blocks.bulkPut(valid.blocks);
@@ -181,6 +187,8 @@ export function createDexieStore(options: DexieStoreOptions = {}): DataStore & {
     members: new DexieRepository(db.members, s.memberSchema, now),
     performers: new DexieRepository(db.performers, s.performerSchema, now, track('performer')),
     tunings: new DexieRepository(db.tunings, s.tuningSchema, now, track('tuning')),
+    instruments: new DexieRepository(db.instruments, s.instrumentSchema, now, track('instrument')),
+    parts: new DexieRepository(db.parts, s.partSchema, now, track('part')),
     songs: new DexieRepository(db.songs, s.songSchema, now, track('song')),
     setlists: new DexieRepository(db.setlists, s.setlistSchema, now, track('setlist')),
     blocks: new DexieRepository(db.blocks, s.blockSchema, now, track('block')),
