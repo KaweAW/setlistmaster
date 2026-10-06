@@ -156,6 +156,7 @@ export const it: Record<MessageKey, string> = {
   'notice.backupDays': 'L’ultimo backup risale a {n} giorni fa.',
   'notice.backupNow': 'Fai backup',
   'notice.later': 'Più tardi',
+  'notice.more': 'altri {n}',
   'notice.dismiss': 'Chiudi',
   'settings.appearance': 'Aspetto',
   'settings.theme': 'Tema',
@@ -303,4 +304,5 @@ export const it: Record<MessageKey, string> = {
   'notice.revoked': 'Non hai più accesso a “{band}”. La tua copia resta su questo dispositivo.',
   'notice.revokedAction': 'Dettagli',
   'readonly.badge': 'Sola lettura',
+  'readonly.message': 'Puoi leggere e suonare questa band, ma non modificarla.',
 };

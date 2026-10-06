@@ -10,6 +10,7 @@ import { ConvertDialog } from '../components/ConvertDialog';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { TuningForm } from '../components/TuningForm';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
+import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
 import { partId } from '../data/instruments';
 import { useQuery } from '../hooks/useQuery';
@@ -37,6 +38,7 @@ export default function SongFormPage() {
   const { songId } = useParams();
   const t = useT();
   const { store, band } = useData();
+  const canEdit = useCanEdit(band.id);
 
   const { data, loading } = useQuery(async () => {
     const [song, performers, tunings, songs, instruments, parts] = await Promise.all([
@@ -53,6 +55,15 @@ export default function SongFormPage() {
     return { song, performers, tunings, instruments, parts, knownTags: collectTags(songs), pdfs };
   }, [store, band.id, songId]);
 
+  if (!canEdit) {
+    // Viewers read only: a typed address must not open the form either.
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        <p role="status" className="text-soft">{t('readonly.message')}</p>
+        <Link to="/library" className={`${buttonClass('secondary')} mt-4`}>{t('common.back')}</Link>
+      </main>
+    );
+  }
   if (loading || !data) return <p className="p-6 text-soft">{t('app.loading')}</p>;
   if (songId && !data.song) {
     return (

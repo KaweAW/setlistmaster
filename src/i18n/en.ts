@@ -154,6 +154,7 @@ export const en = {
   'notice.backupDays': 'Your last backup was {n} days ago.',
   'notice.backupNow': 'Back up',
   'notice.later': 'Later',
+  'notice.more': '{n} more',
   'notice.dismiss': 'Dismiss',
   'settings.appearance': 'Appearance',
   'settings.theme': 'Theme',
@@ -301,6 +302,7 @@ export const en = {
   'notice.revoked': 'You no longer have access to “{band}”. Your copy stays on this device.',
   'notice.revokedAction': 'Details',
   'readonly.badge': 'Read only',
+  'readonly.message': 'You can read and play this band, but not change it.',
 } as const;
 
 export type MessageKey = keyof typeof en;

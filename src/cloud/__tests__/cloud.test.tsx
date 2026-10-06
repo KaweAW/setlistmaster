@@ -147,7 +147,8 @@ describe('joining with a link', () => {
 });
 
 describe('read-only viewers', () => {
-  it('hides the buttons that change things, and sends nothing to the server', async () => {
+  /** A device that joined band b1 as a viewer. */
+  async function viewerDevice() {
     const server = new FakeCloudServer();
     const creator = server.as(KAWE);
     await creator.createBand('b1', 'Band');
@@ -159,10 +160,40 @@ describe('read-only viewers', () => {
     useUiStore.setState({ activeBandId: 'b1' });
     const alex = server.as(ALEX);
     await alex.acceptInvitation('tok1');
+    return { server, store, alex };
+  }
+
+  it('hides the buttons that change things, and sends nothing to the server', async () => {
+    const { server, store, alex } = await viewerDevice();
     mount('/', alex, store);
     expect(await screen.findByText('Read only')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'New setlist' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^More/ })).toBeNull();
     expect(server.remote.pushes).toBe(0);
+  });
+
+  it('cannot add, edit or delete singers and tunings in Settings', async () => {
+    const { store, alex } = await viewerDevice();
+    await store.performers.create({ bandId: 'b1', name: 'Julie', color: '#C4245C', symbol: '♀' });
+    mount('/settings', alex, store);
+    expect(await screen.findByText('Julie')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add singer|performer/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  });
+
+  it('does not open the new-song form even when its address is typed', async () => {
+    const { store, alex } = await viewerDevice();
+    mount('/library/new', alex, store);
+    expect(await screen.findByText(/read and play this band, but not change it/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+  });
+
+  it('does not open the setlist in edit mode even when asked to', async () => {
+    const { store, alex } = await viewerDevice();
+    const setlist = await store.setlists.create({ bandId: 'b1', title: 'Night', archived: false } as never);
+    mount(`/setlist/${setlist.id}`, alex, store);
+    await screen.findByText('Night');
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 });

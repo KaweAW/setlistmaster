@@ -144,7 +144,7 @@ function SongView({
     [navigate, setlistId],
   );
   const onSwipe = (direction: SwipeDirection) => go(direction === 'next' ? next : previous);
-  const swipe = useSwipe(onSwipe, mode === 'chords');
+  const swipe = useSwipe(onSwipe, mode === 'chords' || !onText);
 
   const stop = useCallback(() => setPlaying(false), []);
   useAutoScroll(playing, scrollLevel, stop);
@@ -277,7 +277,24 @@ function SongView({
           <p key={i} className="mb-2 whitespace-pre-wrap text-sm italic text-soft">{note}</p>
         ))}
 
-        {mode === 'chords' && hasChart && (
+        {tabs.length > 0 && (
+          <div role="tablist" aria-label={t('part.tabs')} className="mb-3 flex gap-1 overflow-x-auto">
+            {[{ id: 'text', label: t('part.text') }, ...tabs.map((x) => ({ id: x.instrument.id, label: x.instrument.name }))].map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === x.id}
+                onClick={() => setTab(x.id)}
+                className={`h-11 shrink-0 rounded-md px-4 text-sm font-semibold ${tab === x.id ? 'bg-ink text-paper' : 'border border-line bg-surface text-ink'}`}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(mode === 'chords' || !onText) && hasChart && (
           <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} />
         )}
         {mode === 'pdf' && pdf && tabPdfs.length > 1 && (
@@ -295,7 +312,7 @@ function SongView({
             <PdfViewer key={pdf.id} data={pdf.data} />
           </Suspense>
         )}
-        {!hasChart && !pdf && (
+        {!hasChart && !(onText && pdf) && (
           <div className="py-12 text-center">
             <p className="mb-4 text-soft">{t('chart.empty')}</p>
             <Link to={`/library/${song.id}`} className={buttonClass('primary')}>{t('chart.emptyAction')}</Link>
@@ -316,7 +333,7 @@ function SongView({
       </main>
 
       <SongToolbar
-        showChartControls={mode === 'chords' && hasChart}
+        showChartControls={(mode === 'chords' || !onText) && hasChart}
         semitones={semitones}
         onSemitones={setSemitones}
         capo={capo}

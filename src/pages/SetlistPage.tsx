@@ -25,7 +25,7 @@ function SetlistPageInner({ setlistId }: { setlistId: string | undefined }) {
   const stage = useUiStore((s) => s.stageMode);
   useWakeLock(stage); // the setlist on the music stand must not go dark either
   // A brand-new setlist opens straight in edit mode; every other visit starts in the safe read-only view.
-  const [editing, setEditing] = useState(() => (location.state as { edit?: boolean } | null)?.edit === true);
+  const [editing, setEditing] = useState(() => canEdit && (location.state as { edit?: boolean } | null)?.edit === true);
 
   useEffect(() => {
     if (!editing) return;

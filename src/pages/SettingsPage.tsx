@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { performerUsage, tuningUsage } from '../core/usage';
+import { useCanEdit } from '../cloud/CloudProvider';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { PerformerForm } from '../components/PerformerForm';
 import { InstrumentsSection } from '../components/InstrumentsSection';
@@ -69,6 +70,7 @@ function useBandUsage() {
 function PerformersSection() {
   const t = useT();
   const { store, band } = useData();
+  const canEdit = useCanEdit(band.id);
   const { data, reload } = useBandUsage();
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -104,8 +106,8 @@ function PerformersSection() {
               <div className="flex min-h-[44px] items-center gap-3">
                 <PerformerBadge performer={p} size={28} />
                 <span className="flex-1 text-base font-semibold">{p.name}</span>
-                <Button variant="secondary" onClick={() => setEditing(p.id)}>{t('common.edit')}</Button>
-                <Button variant="danger" onClick={() => void remove(p.id, p.name)}>{t('common.delete')}</Button>
+                {canEdit && <Button variant="secondary" onClick={() => setEditing(p.id)}>{t('common.edit')}</Button>}
+                {canEdit && <Button variant="danger" onClick={() => void remove(p.id, p.name)}>{t('common.delete')}</Button>}
               </div>
             )}
           </li>
@@ -123,7 +125,7 @@ function PerformersSection() {
             }}
           />
         ) : (
-          <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('performer.add')}</Button>
+          canEdit && <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('performer.add')}</Button>
         )}
       </div>
     </section>
@@ -133,6 +135,7 @@ function PerformersSection() {
 function TuningsSection() {
   const t = useT();
   const { store, band } = useData();
+  const canEdit = useCanEdit(band.id);
   const { data, reload } = useBandUsage();
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -175,8 +178,8 @@ function TuningsSection() {
                   )}
                 </div>
                 {x.isStandard && <span className="text-xs font-semibold text-soft">{t('tuning.standard')}</span>}
-                <Button variant="secondary" onClick={() => setEditing(x.id)}>{t('common.edit')}</Button>
-                {!x.isStandard && (
+                {canEdit && <Button variant="secondary" onClick={() => setEditing(x.id)}>{t('common.edit')}</Button>}
+                {canEdit && !x.isStandard && (
                   <Button variant="danger" onClick={() => void remove(x.id, x.name)}>{t('common.delete')}</Button>
                 )}
               </div>
@@ -196,7 +199,7 @@ function TuningsSection() {
             }}
           />
         ) : (
-          <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('tuning.add')}</Button>
+          canEdit && <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('tuning.add')}</Button>
         )}
       </div>
     </section>
