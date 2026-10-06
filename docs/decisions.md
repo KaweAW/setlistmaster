@@ -324,3 +324,13 @@ and what still has to be tried by hand on real devices.
   the app must work offline. Text stays dark on the coloured paper in the dark theme and in stage mode.
 - Notes are per part: each tab has its own text, so a bass note stays on the bass chart.
 - "Bookmarks for rehearsal" are these notes: a marker where something must be remembered. A jump list may come later.
+
+## Phase 11 — Stage view and sober motion
+
+- **Stage**: in stage mode chords become bold chips, sections get more space and the line height grows. The "next song" button
+  moved from the end of the text to the fixed bottom bar (bigger on stage), so it is always one tap away without scrolling.
+- **Changes from bandmates** flash: `SyncStore.onRemoteApplied` reports the ids written by a sync, `dataRevision.flash` keeps them
+  for 4 s, and `RemoteFlash` plays a soft amber wash once over the library, home and setlist rows. Only remote writes flash, never
+  your own edits.
+- **Motion**: the "⋯" menu slides open, dragged setlist items settle with a short drop animation. Everything is disabled for
+  people who prefer reduced motion (`motion-safe` / `prefers-reduced-motion`).

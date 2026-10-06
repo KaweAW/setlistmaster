@@ -153,7 +153,7 @@ describe('theme and stage mode', () => {
     const { song } = await setup(({ songId }) => `/song/${songId}`);
     await screen.findByRole('heading', { name: song.title });
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
-    expect((document.querySelector('main .leading-snug') as HTMLElement).style.fontSize).toBe('28px');
+    expect((document.querySelector('main .leading-normal') as HTMLElement).style.fontSize).toBe('28px');
     expect(await screen.findByText(/The screen may turn off/)).toBeTruthy(); // jsdom has no Wake Lock API
 
     // changing the size on stage leaves the everyday size alone

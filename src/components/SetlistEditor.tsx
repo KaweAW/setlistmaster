@@ -18,7 +18,11 @@ import type { SetlistEditorApi } from '../hooks/useSetlistEditor';
 import { ItemEditorDialog } from './ItemEditorDialog';
 import { SongPickerDialog } from './SongPickerDialog';
 import { buildLookups, ItemBadges, TransitionLine, type Lookups } from './setlistParts';
+import { RemoteFlash } from './RemoteFlash';
 import { Button, Field, inputClass } from './ui';
+
+const reducedMotion = () =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 interface Props {
   tree: SetlistTree;
@@ -155,7 +159,7 @@ export function SetlistEditor({ tree, songs, performers, tunings, apply, createS
           </div>
         </SortableContext>
 
-        <DragOverlay dropAnimation={null}>
+        <DragOverlay dropAnimation={reducedMotion() ? null : { duration: 180, easing: 'ease-out' }}>
           {active?.kind === 'item' && (
             <ItemCard item={view.items.find((i) => i.id === active.id)} lookups={lookups} floating />
           )}
@@ -364,8 +368,9 @@ function SortableItemRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`grid grid-cols-[44px_28px_1fr] items-start gap-x-1 border-b border-line/70 py-2 last:border-b-0 ${hidden ? 'opacity-30' : ''}`}
+      className={`relative grid grid-cols-[44px_28px_1fr] items-start gap-x-1 border-b border-line/70 py-2 last:border-b-0 ${hidden ? 'opacity-30' : ''}`}
     >
+      <RemoteFlash id={item.id} />
       <button
         ref={setActivatorNodeRef}
         {...attributes}

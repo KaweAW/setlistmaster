@@ -279,7 +279,7 @@ function SongView({
         ))}
 
         {mode === 'chords' && hasChart && (
-          <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} />
+          <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} />
         )}
         {mode === 'pdf' && pdf && tabPdfs.length > 1 && (
           <select
@@ -304,16 +304,6 @@ function SongView({
         )}
 
         {item && <TransitionLine item={item} className="mt-8" />}
-        {nextSong && next && (
-          <Link
-            to={`/setlist/${setlistId}/song/${next.id}`}
-            replace
-            className={`${buttonClass('secondary')} mt-4 w-full justify-between`}
-          >
-            <span className="truncate">{t('chart.nextUp', { title: nextSong.title })}</span>
-            <span aria-hidden>→</span>
-          </Link>
-        )}
       </main>
 
       <SongToolbar
@@ -328,6 +318,8 @@ function SongView({
         onTogglePlay={() => setPlaying((p) => !p)}
         scrollLevel={scrollLevel}
         onScrollLevel={setScrollLevel}
+        stage={stage}
+        {...(nextSong && next ? { next: { title: nextSong.title, to: `/setlist/${setlistId}/song/${next.id}` } } : {})}
       />
     </div>
   );

@@ -89,6 +89,8 @@ export interface SyncStore {
   missingBlobs(bandId: string): Promise<Attachment[]>;
   /** Stores bytes that came from the cloud. */
   saveBlob(attachment: Attachment, data: ArrayBuffer): Promise<void>;
+  /** Called with the ids of the records that changed because of something that came from the cloud (to highlight them). */
+  onRemoteApplied(listener: (ids: string[]) => void): () => void;
   /** Called after every local change to a synced band. */
   onLocalChange(listener: (bandId: string) => void): () => void;
 }
