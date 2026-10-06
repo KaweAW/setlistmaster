@@ -232,3 +232,29 @@ describe('the song form, part by part', () => {
     expect(await store.parts.listBy('songId', song.id)).toEqual([]);
   });
 });
+
+describe('sticky notes', () => {
+  it('are added from the song form and shown on the song page', async () => {
+    const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
+    await store.songs.update(song.id, { chordpro: '[Em]first line\n[G]second line' });
+    await screen.findByLabelText('Title');
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Pink' }));
+    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'Wait for Alex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Put it in the text' }));
+    const area = screen.getByLabelText('Lyrics and chords (ChordPro)') as HTMLTextAreaElement;
+    expect(area.value).toContain('{note_pink: Wait for Alex}');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () => expect((await store.songs.get(song.id))!.chordpro).toContain('{note_pink: Wait for Alex}'));
+    cleanup();
+
+    render(
+      <MemoryRouter initialEntries={[`/song/${song.id}`]}>
+        <DataProvider store={store}><AppRoutes /></DataProvider>
+      </MemoryRouter>,
+    );
+    const note = await screen.findByText('Wait for Alex');
+    expect(note.className).toContain('sticky-note--pink');
+    expect(band.id).toBeTruthy();
+  });
+});

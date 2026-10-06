@@ -311,3 +311,16 @@ and what still has to be tried by hand on real devices.
   Removing a part that has text or PDFs asks first; nothing is deleted before "Save", as before.
 - **Tabs** for lead and bass are plain ChordPro: `{start_of_tab}` … `{end_of_tab}` was already rendered in monospace.
 - The save bar sticks to the bottom of the screen, so saving never needs a scroll.
+
+## Phase 10 — Sticky notes in the text
+
+- **A note is a ChordPro directive**, `{note: text}` or `{note_pink: text}` (yellow, pink, green, blue, orange). It lives in the
+  song's text, so it syncs, backs up, prints and transposes with nothing new in the data model; a viewer sees it, an editor
+  can still change it as plain text. Unknown directives were already ignored, so older copies of the app just do not show it.
+- **Writing one**: "Add note" in the Charts card opens a small panel (colour, text up to 160 characters). The note goes on its
+  own line above the line the cursor is on, and the cursor ends after it. Braces and line breaks are stripped from the text.
+- **Look**: paper in a pastel colour with a strip of tape, a folded corner, a light shadow and a slight tilt that alternates;
+  handwriting-style font where the device has one (Bradley Hand, Segoe Print…) and a cursive fallback. No web font on purpose:
+  the app must work offline. Text stays dark on the coloured paper in the dark theme and in stage mode.
+- Notes are per part: each tab has its own text, so a bass note stays on the bass chart.
+- "Bookmarks for rehearsal" are these notes: a marker where something must be remembered. A jump list may come later.
