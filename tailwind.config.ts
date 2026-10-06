@@ -23,6 +23,20 @@ export default {
         'acc-ink': '#8A5A00',
         'acc-tint': '#FBEBC8',
       },
+      // Motion is short and quiet; every use is behind `motion-safe:` and index.css also zeroes it for people who
+      // asked their device for reduced motion.
+      keyframes: {
+        'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+        'slide-down-in': { from: { opacity: '0', transform: 'translateY(-6px)' }, to: { opacity: '1', transform: 'none' } },
+        'rise-in': { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'none' } },
+        'sheet-in': { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'none' } },
+      },
+      animation: {
+        'fade-in': 'fade-in 160ms ease-out both',
+        'slide-down-in': 'slide-down-in 200ms ease-out both',
+        'rise-in': 'rise-in 180ms ease-out both',
+        'sheet-in': 'sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+      },
       fontFamily: {
         display: ['Oswald', 'Impact', 'sans-serif'],
         sans: ['"Source Sans 3"', 'Helvetica', 'Arial', 'sans-serif'],

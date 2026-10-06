@@ -95,7 +95,7 @@ export default function HomePage() {
           </Button>}
         </div>
         {menuOpen && (
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="mb-2 flex flex-wrap gap-2 motion-safe:animate-rise-in">
             <Button variant="secondary" onClick={() => void duplicate(s)}>{t('action.duplicate')}</Button>
             <Button variant="secondary" onClick={() => void toggleArchive(s)}>
               {s.archived ? t('action.unarchive') : t('action.archive')}
