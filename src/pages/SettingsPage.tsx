@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { performerUsage, tuningUsage } from '../core/usage';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { PerformerForm } from '../components/PerformerForm';
+import { InstrumentsSection } from '../components/InstrumentsSection';
 import { CloudSection } from '../components/CloudSection';
 import { AppearanceSection, BackupSection, DangerSection, DataSection } from '../components/SettingsData';
 import { TuningChip } from '../components/TuningChip';
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       <CloudSection />
       <PerformersSection />
       <TuningsSection />
+      <InstrumentsSection Title={SectionTitle} />
       <DataSection />
       <BackupSection />
       <DangerSection />

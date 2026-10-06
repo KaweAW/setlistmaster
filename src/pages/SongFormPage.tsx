@@ -5,12 +5,13 @@ import { newId } from '../core/ids';
 import { collectTags } from '../core/songFilter';
 import { normalizeTags } from '../core/tags';
 import { formatTuningNotes } from '../core/tuning';
-import type { Performer, Song, Tuning } from '../core/types';
+import type { Instrument, Part, Performer, Song, Tuning } from '../core/types';
 import { ConvertDialog } from '../components/ConvertDialog';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { TuningForm } from '../components/TuningForm';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
 import { useData } from '../data/DataProvider';
+import { partId } from '../data/instruments';
 import { useQuery } from '../hooks/useQuery';
 import { useT, type MessageKey } from '../i18n';
 
@@ -29,15 +30,18 @@ export default function SongFormPage() {
   const { store, band } = useData();
 
   const { data, loading } = useQuery(async () => {
-    const [song, performers, tunings, songs] = await Promise.all([
+    const [song, performers, tunings, songs, instruments, parts] = await Promise.all([
       songId ? store.songs.get(songId) : Promise.resolve(undefined),
       store.performers.listBy('bandId', band.id),
       store.tunings.listBy('bandId', band.id),
       store.songs.listBy('bandId', band.id),
+      store.instruments.listBy('bandId', band.id),
+      songId ? store.parts.listBy('songId', songId) : Promise.resolve([]),
     ]);
     const file = song?.pdfBlobId ? await store.files.get(song.pdfBlobId) : undefined;
     const pdf: PdfInfo | undefined = file ? { id: file.id, name: file.name, size: file.size } : undefined;
-    return { song, performers, tunings, knownTags: collectTags(songs), pdf };
+    instruments.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+    return { song, performers, tunings, instruments, parts, knownTags: collectTags(songs), pdf };
   }, [store, band.id, songId]);
 
   if (loading || !data) return <p className="p-6 text-soft">{t('app.loading')}</p>;
@@ -56,6 +60,8 @@ export default function SongFormPage() {
       initial={data.song}
       performers={data.performers}
       tunings={data.tunings}
+      instruments={data.instruments}
+      initialParts={data.parts}
       knownTags={data.knownTags}
       initialPdf={data.pdf}
     />
@@ -68,12 +74,16 @@ function SongForm({
   initial,
   performers,
   tunings,
+  instruments,
+  initialParts,
   knownTags,
   initialPdf,
 }: {
   initial: Song | undefined;
   performers: Performer[];
   tunings: Tuning[];
+  instruments: Instrument[];
+  initialParts: Part[];
   knownTags: string[];
   initialPdf: PdfInfo | undefined;
 }) {
@@ -96,6 +106,10 @@ function SongForm({
   const [duration, setDuration] = useState(initial?.durationSec ? formatDuration(initial.durationSec) : '');
   const [performerIds, setPerformerIds] = useState<string[]>(initial?.defaultPerformerIds ?? []);
   const [chordpro, setChordpro] = useState(initial?.chordpro ?? '');
+  const [instrumentIds, setInstrumentIds] = useState<string[]>(initial?.instrumentIds ?? []);
+  const [partTexts, setPartTexts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(initialParts.map((p) => [p.instrumentId, p.chordpro])),
+  );
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
@@ -131,6 +145,10 @@ function SongForm({
 
   function togglePerformer(id: string) {
     setPerformerIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
+  function toggleInstrument(id: string) {
+    setInstrumentIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   }
 
   function onPdfChange(e: ChangeEvent<HTMLInputElement>) {
@@ -195,13 +213,29 @@ function SongForm({
         durationSec: parsedDuration.seconds,
         tuningId,
         defaultPerformerIds: performerIds,
+        instrumentIds,
         chordpro,
         pdfBlobId,
         notes,
         tags: normalizeTags([...tags, tagInput]),
       };
-      if (initial) await store.songs.update(initial.id, data);
-      else await store.songs.create(data);
+      const saved = initial ? await store.songs.update(initial.id, data) : await store.songs.create(data);
+      // One part per ticked instrument (its id is derived, so it is the same on every device); unticked ones go away.
+      for (const instrument of instruments) {
+        const id = await partId(band.id, saved.id, instrument.id);
+        const existing = initialParts.find((p) => p.instrumentId === instrument.id);
+        if (instrumentIds.includes(instrument.id)) {
+          const text = partTexts[instrument.id] ?? '';
+          if (existing) await store.parts.update(existing.id, { chordpro: text });
+          else if (await store.parts.has(id)) {
+            const now = Date.now(); // the part was removed before: bring the same record back
+            await store.parts.put({ id, bandId: band.id, songId: saved.id, instrumentId: instrument.id, chordpro: text, notes: '', createdAt: now, updatedAt: now });
+          }
+          else await store.parts.create({ id, bandId: band.id, songId: saved.id, instrumentId: instrument.id, chordpro: text, notes: '' });
+        } else if (existing) {
+          await store.parts.remove(existing.id);
+        }
+      }
       goBack();
     } catch {
       setMessage(t('song.saveError'));
@@ -317,6 +351,38 @@ function SongForm({
         <div className="-mt-3">
           <Button variant="secondary" onClick={() => setConvertOpen(true)}>{t('convert.open')}</Button>
         </div>
+
+        {instruments.length > 0 && (
+          <FieldGroup legend={t('field.instruments')}>
+            <p className="mb-2 text-sm text-soft">{t('field.instruments.hint')}</p>
+            <div className="flex flex-wrap gap-2">
+              {instruments.map((i) => (
+                <button
+                  key={i.id}
+                  type="button"
+                  aria-pressed={instrumentIds.includes(i.id)}
+                  onClick={() => toggleInstrument(i.id)}
+                  className={`h-11 rounded-full border px-4 text-base font-semibold ${
+                    instrumentIds.includes(i.id) ? 'border-ink bg-ink text-paper' : 'border-line bg-surface text-ink'
+                  }`}
+                >
+                  {i.name}
+                </button>
+              ))}
+            </div>
+            {instruments.filter((i) => instrumentIds.includes(i.id)).map((i) => (
+              <Field key={i.id} label={t('part.chordpro', { name: i.name })} className="mt-3">
+                <textarea
+                  className={`${textareaClass} font-mono text-[15px]`}
+                  rows={8}
+                  spellCheck={false}
+                  value={partTexts[i.id] ?? ''}
+                  onChange={(e) => setPartTexts((x) => ({ ...x, [i.id]: e.target.value }))}
+                />
+              </Field>
+            ))}
+          </FieldGroup>
+        )}
 
         <FieldGroup legend={t('field.pdf')}>
           <div className="flex flex-wrap items-center gap-3">

@@ -241,3 +241,25 @@ and what still has to be tried by hand on real devices.
   connection" and the invitation page asks to sign in. *To do by hand (needs a real Supabase project):* sign-up and email
   confirmation, sharing the band, inviting from an iPhone and accepting on a Mac, simultaneous edits, airplane mode and back
   online, removing a member.
+
+## Phase 7 — Instrument parts
+
+- **The plain text is always there.** A song keeps its `chordpro` field exactly as before and it is the "Text" tab; instruments
+  only *add* charts. A band that never ticks an instrument sees no difference (no tab bar at all).
+- **Data model**: `instrument` (band-scoped, `name`, `order`) and `part` (`songId`, `instrumentId`, `chordpro`, `notes`), plus
+  `song.instrumentIds` (which instruments the song has). Both are new sync kinds, Dexie v4 and backup version 2 (a version 1
+  file still loads: the new arrays default to empty).
+- **Derived ids.** A part's id comes from band + song + instrument (`partId`), and the three default instruments (lead guitar,
+  rhythm guitar, bass) get ids derived from band + a fixed key, like the library songs. Two devices that create the same part
+  or the same default therefore write the *same* record (last write wins) instead of making duplicates, and a deleted default
+  stays deleted. Their names are seeded in the language of the app at that moment, and are ordinary editable data afterwards.
+- **Editable list.** Settings → Instruments adds, renames and deletes instruments (suggestions: piano, keyboards, drums…).
+  Deleting one used by a song is refused, like singers and tunings. Unticking an instrument on a song and saving removes its part.
+- **"The instrument I play"** is kept on the account when the band is synced and the person is signed in
+  (`members.instrument_id`, set with `set_my_instrument`, read with `my_instrument`; viewers can set it too, it is their own
+  preference, not band data), so it follows them across devices. It is mirrored in the local UI store per band, which is also the
+  only copy for a local band or when offline; a choice made offline is pushed the next time the band opens. A song opens on the
+  tab of that instrument when the song has it, otherwise on Text.
+- **Migration** `0002_instruments.sql` widens the `records.kind` check and adds the member column and the two functions. The
+  PGlite test harness now applies every migration in order.
+- **Not done here**: PDFs per part (next branch; PDFs are still local only).
