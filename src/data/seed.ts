@@ -92,6 +92,7 @@ export async function seedBand(store: DataStore, bandId: string): Promise<void> 
       setlistId: setlist.id,
       name: seedBlock.name,
       subtitle: seedBlock.subtitle ?? '',
+      reserve: false,
       position: blockPositions[bi]!,
     });
     const itemPositions = positionsAfter(null, seedBlock.songs.length);

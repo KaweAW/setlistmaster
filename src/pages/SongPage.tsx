@@ -8,6 +8,7 @@ import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps
 import type { Attachment, Instrument, Part, Performer, SetlistItem, Song, Tuning } from '../core/types';
 import { formatDuration } from '../core/format';
 import { ChordChart } from '../components/ChordChart';
+import { MetronomePanel } from '../components/MetronomePanel';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { StageToggle } from '../components/StageToggle';
 import { SongToolbar } from '../components/SongToolbar';
@@ -86,6 +87,7 @@ function SongView({
   const canEdit = useCanEdit(useData().band.id);
   // Stage mode has its own, larger text size, so adjusting it on stage never disturbs the everyday one.
   const stage = useUiStore((s) => s.stageMode);
+  const [metro, setMetro] = useState(false);
   const fontSize = useUiStore((s) => (s.stageMode ? s.stageFontSize : s.songFontSize));
   const setFontSize = useUiStore((s) => (s.stageMode ? s.setStageFontSize : s.setSongFontSize));
   const scrollLevel = useUiStore((s) => s.scrollLevel);
@@ -253,6 +255,15 @@ function SongView({
             </span>
           )}
           <StageToggle />
+          <button
+            type="button"
+            aria-pressed={metro}
+            aria-label={t('metro.title')}
+            onClick={() => setMetro(!metro)}
+            className={`h-11 shrink-0 rounded-md border border-line px-3 text-sm font-semibold ${metro ? 'bg-chrome text-chrome-ink' : 'bg-surface'}`}
+          >
+            ♩ {song.tempo ?? ''}
+          </button>
           {tabs.length > 0 && (
             <select
               aria-label={t('part.select')}
@@ -267,6 +278,7 @@ function SongView({
             </select>
           )}
         </div>
+        {metro && <MetronomePanel key={song.id} initialBpm={song.tempo} />}
         {(item?.performerNote || stage) && (
           <div className="mb-3 flex flex-wrap items-center gap-3">
             {item?.performerNote && <span className="text-[11px] italic text-soft">{item.performerNote}</span>}

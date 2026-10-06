@@ -24,12 +24,13 @@ export default function HomePage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data, loading, reload } = useQuery(async () => {
-    const [setlists, items, songs] = await Promise.all([
+    const [setlists, items, songs, blocks] = await Promise.all([
       store.setlists.listBy('bandId', band.id),
       store.items.listBy('bandId', band.id),
       store.songs.listBy('bandId', band.id),
+      store.blocks.listBy('bandId', band.id),
     ]);
-    return { setlists, items, songs };
+    return { setlists, items, songs, blocks };
   }, [store, band.id]);
 
   if (loading || !data) return <p className="p-6 text-soft">{t('app.loading')}</p>;
@@ -65,7 +66,11 @@ export default function HomePage() {
   }
 
   function row(s: Setlist) {
-    const stats = setlistStats(data!.items.filter((i) => i.setlistId === s.id), data!.songs);
+    const stats = setlistStats(
+      data!.items.filter((i) => i.setlistId === s.id),
+      data!.songs,
+      new Set(data!.blocks.filter((b) => b.reserve).map((b) => b.id)),
+    );
     const duration =
       stats.durationSec > 0
         ? stats.missingDurationCount > 0

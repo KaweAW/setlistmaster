@@ -8,12 +8,18 @@ export interface SetlistStats {
   missingDurationCount: number;
 }
 
-export function setlistStats(items: readonly SetlistItem[], songs: readonly Song[]): SetlistStats {
+/** Songs of reserve blocks (`skipBlockIds`) are not counted: the total is what will really be played. */
+export function setlistStats(
+  items: readonly SetlistItem[],
+  songs: readonly Song[],
+  skipBlockIds: ReadonlySet<string> = new Set(),
+): SetlistStats {
   const songById = new Map(songs.map((s) => [s.id, s]));
   let songCount = 0;
   let durationSec = 0;
   let missingDurationCount = 0;
   for (const item of items) {
+    if (skipBlockIds.has(item.blockId)) continue;
     const song = songById.get(item.songId);
     if (!song) continue;
     songCount += 1;
