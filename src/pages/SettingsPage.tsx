@@ -1,14 +1,12 @@
 import { Select } from '../components/Select';
 import { useState } from 'react';
-import { performerUsage, tuningUsage } from '../core/usage';
+import { performerUsage } from '../core/usage';
 import { useCanEdit } from '../cloud/CloudProvider';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { PerformerForm } from '../components/PerformerForm';
 import { InstrumentsSection } from '../components/InstrumentsSection';
 import { CloudSection } from '../components/CloudSection';
 import { AppearanceSection, BackupSection, DangerSection, DataSection } from '../components/SettingsData';
-import { TuningChip } from '../components/TuningChip';
-import { TuningForm } from '../components/TuningForm';
 import { Button, Field, PageTitle } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { useQuery } from '../hooks/useQuery';
@@ -38,7 +36,6 @@ export default function SettingsPage() {
       <AppearanceSection />
       <CloudSection />
       <PerformersSection />
-      <TuningsSection />
       <InstrumentsSection Title={SectionTitle} />
       <DataSection />
       <BackupSection />
@@ -129,80 +126,6 @@ function PerformersSection() {
           />
         ) : (
           canEdit && <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('performer.add')}</Button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function TuningsSection() {
-  const t = useT();
-  const { store, band } = useData();
-  const canEdit = useCanEdit(band.id);
-  const { data, reload } = useBandUsage();
-  const [editing, setEditing] = useState<string | 'new' | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
-  if (!data) return null;
-
-  async function remove(id: string, name: string) {
-    const n = tuningUsage(id, data!.songs, data!.items);
-    if (n > 0) return setMessage(t('usage.blocked', { n }));
-    if (!window.confirm(t('common.deleteConfirm', { name }))) return;
-    await store.tunings.remove(id);
-    setMessage(null);
-    reload();
-  }
-
-  return (
-    <section>
-      <SectionTitle>{t('settings.tunings')}</SectionTitle>
-      <ul className="divide-y divide-line border-y border-line">
-        {data.tunings.map((x) => (
-          <li key={x.id} className="py-2">
-            {editing === x.id ? (
-              <TuningForm
-                initial={{ name: x.name, notes: x.notes }}
-                onCancel={() => setEditing(null)}
-                onSubmit={async (v) => {
-                  await store.tunings.update(x.id, v);
-                  setEditing(null);
-                  reload();
-                }}
-              />
-            ) : (
-              <div className="flex min-h-[44px] items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold">{x.name}</div>
-                  {x.notes && !x.isStandard && (
-                    <div className="mt-0.5">
-                      <TuningChip tuning={x} withFlat={false} />
-                    </div>
-                  )}
-                </div>
-                {x.isStandard && <span className="text-xs font-semibold text-soft">{t('tuning.standard')}</span>}
-                {canEdit && <Button variant="secondary" onClick={() => setEditing(x.id)}>{t('common.edit')}</Button>}
-                {canEdit && !x.isStandard && (
-                  <Button variant="danger" onClick={() => void remove(x.id, x.name)}>{t('common.delete')}</Button>
-                )}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-      {message && <p role="alert" className="mt-2 text-sm font-semibold text-lei">{message}</p>}
-      <div className="mt-3">
-        {editing === 'new' ? (
-          <TuningForm
-            onCancel={() => setEditing(null)}
-            onSubmit={async (v) => {
-              await store.tunings.create({ bandId: band.id, isStandard: false, ...v });
-              setEditing(null);
-              reload();
-            }}
-          />
-        ) : (
-          canEdit && <Button variant="secondary" onClick={() => setEditing('new')}>+ {t('tuning.add')}</Button>
         )}
       </div>
     </section>

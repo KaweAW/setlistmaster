@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatTuningNotes, parseTuningNotes } from '../tuning';
+import { formatTuningNotes, isStandardStrings, nameForStrings, parseTuningNotes, standardStrings, tuningStrings } from '../tuning';
 
 describe('tuning notes', () => {
   it('normalizes separators', () => {
@@ -19,5 +19,26 @@ describe('tuning notes', () => {
   });
   it('formats as plain text', () => {
     expect(formatTuningNotes('D-G-C-F-A-D')).toBe('D G C F A D');
+  });
+});
+
+describe('tuning strings', () => {
+  it('starts from standard and adds low strings', () => {
+    expect(standardStrings()).toEqual(['E', 'A', 'D', 'G', 'B', 'E']);
+    expect(standardStrings(7)).toEqual(['B', 'E', 'A', 'D', 'G', 'B', 'E']);
+    expect(standardStrings(8)).toEqual(['F♯', 'B', 'E', 'A', 'D', 'G', 'B', 'E']);
+    expect(isStandardStrings(standardStrings())).toBe(true);
+    expect(isStandardStrings(standardStrings(7))).toBe(false);
+  });
+  it('reads a tuning from its notes, with one spelling per note', () => {
+    expect(tuningStrings('eb ab db gb bb eb')).toEqual(['E♭', 'A♭', 'C♯', 'F♯', 'B♭', 'E♭']);
+    expect(tuningStrings('D-G-C-F-A-D')).toEqual(['D', 'G', 'C', 'F', 'A', 'D']);
+    expect(tuningStrings('Open G slide')).toBeNull();
+    expect(tuningStrings('E A D G')).toBeNull();
+  });
+  it('names known tunings and falls back to the notes', () => {
+    expect(nameForStrings(standardStrings())).toBe('Standard');
+    expect(nameForStrings(['D', 'A', 'D', 'G', 'B', 'E'])).toBe('Drop D');
+    expect(nameForStrings(['D', 'B', 'D', 'G', 'B', 'E'])).toBe('D B D G B E');
   });
 });

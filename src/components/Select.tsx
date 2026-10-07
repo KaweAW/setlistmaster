@@ -18,7 +18,9 @@ interface Props {
   placeholder?: string;
   className?: string;
   /** `dashed` is the quiet "+ add" look. */
-  variant?: 'field' | 'compact' | 'dashed';
+  variant?: 'field' | 'compact' | 'dashed' | 'chip' | 'string';
+  /** Marks a filter that is on (the `chip` look turns dark). */
+  on?: boolean;
   /** A search box appears above this many options. */
   searchAbove?: number;
 }
@@ -30,6 +32,8 @@ const variantClass = {
   field: inputClass,
   compact: 'h-11 rounded-md border border-line bg-surface px-2 text-sm font-semibold text-ink',
   dashed: 'h-11 rounded-md border border-dashed border-line bg-surface px-2 text-sm font-semibold text-soft',
+  chip: 'h-10 rounded-full border border-line bg-surface pl-3.5 pr-2.5 text-sm font-semibold text-ink',
+  string: 'h-12 !justify-center rounded-md border border-line bg-surface px-1 text-center font-display text-lg font-bold text-ink',
 } as const;
 
 function useSheet() {
@@ -49,7 +53,7 @@ function useSheet() {
  * and rises as a sheet on phones. Keyboard (arrows, Home/End, type to jump, Enter, Esc) and screen readers work as for a
  * native select; long lists get a search box.
  */
-export function Select({ value, options, onChange, label, placeholder, className = '', variant = 'field', searchAbove = 8 }: Props) {
+export function Select({ value, options, onChange, label, placeholder, className = '', variant = 'field', on = false, searchAbove = 8 }: Props) {
   const t = useT();
   const id = useId();
   const sheet = useSheet();
@@ -264,10 +268,10 @@ export function Select({ value, options, onChange, label, placeholder, className
             show();
           }
         }}
-        className={`group flex items-center justify-between gap-2 text-left transition-colors hover:border-io/60 focus:border-io focus:outline-none focus:ring-2 focus:ring-io/30 ${variantClass[variant]} ${className}`}
+        className={`group flex items-center justify-between gap-2 text-left transition-colors hover:border-io/60 focus:border-io focus:outline-none focus:ring-2 focus:ring-io/30 ${variantClass[variant]} ${on ? '!border-ink !bg-ink !text-paper' : ''} ${className}`}
       >
         <span className={`min-w-0 flex-1 truncate ${selected ? '' : 'text-soft'}`}>{selected ? selected.label : (placeholder ?? '')}</span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`shrink-0 text-soft transition-transform duration-200 ${open && !closing ? 'rotate-180' : ''}`}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`shrink-0 transition-transform duration-200 ${variant === 'string' ? 'hidden' : ''} ${on ? 'text-paper' : 'text-soft'} ${open && !closing ? 'rotate-180' : ''}`}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>

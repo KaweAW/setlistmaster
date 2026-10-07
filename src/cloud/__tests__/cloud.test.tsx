@@ -186,7 +186,7 @@ describe('read-only viewers', () => {
     expect(server.remote.pushes).toBe(0);
   });
 
-  it('cannot add, edit or delete singers and tunings in Settings', async () => {
+  it('cannot add, edit or delete singers in Settings', async () => {
     const { store, alex } = await viewerDevice();
     await store.performers.create({ bandId: 'b1', name: 'Julie', color: '#C4245C', symbol: '♀' });
     mount('/settings', alex, store);

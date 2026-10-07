@@ -5,12 +5,13 @@ import { formatDuration, parseDuration } from '../core/format';
 import { newId } from '../core/ids';
 import { collectTags } from '../core/songFilter';
 import { normalizeTags } from '../core/tags';
-import { formatTuningNotes } from '../core/tuning';
+import { elementAtReadingLine } from '../lib/readingLine';
+import { isStandardStrings, nameForStrings, standardStrings, stringsKey, tuningStrings } from '../core/tuning';
 import type { Instrument, Part, Performer, Song, Tuning } from '../core/types';
 import { PartsEditor, TEXT_PART, type PdfInfo, type PendingPdf } from '../components/PartsEditor';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { DurationSlider, KeyPicker, TempoTools } from '../components/SongFormParts';
-import { TuningForm } from '../components/TuningForm';
+import { TuningPicker } from '../components/TuningPicker';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
@@ -19,7 +20,6 @@ import { partId } from '../data/instruments';
 import { useQuery } from '../hooks/useQuery';
 import { useT, type MessageKey } from '../i18n';
 
-const NEW_TUNING = '__new__';
 const card = 'space-y-4 rounded-xl border border-line bg-surface p-4 shadow-sm scroll-mt-28 sm:p-5';
 
 const NAV_ICONS = {
@@ -48,15 +48,25 @@ function FormSteps({ steps, progress }: { steps: { id: string; label: string }[]
   const t = useT();
   const [current, setCurrent] = useState(steps[0]!.id);
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) if (e.isIntersecting) setCurrent(e.target.id);
-      },
-      { rootMargin: '-25% 0px -60% 0px' },
-    );
-    document.querySelectorAll('[data-form-section]').forEach((n) => observer.observe(n));
-    return () => observer.disconnect();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const nodes = [...document.querySelectorAll<HTMLElement>('[data-form-section]')];
+      if (nodes.length === 0 || nodes[0]!.getBoundingClientRect().height === 0) return;
+      const found = elementAtReadingLine(nodes, 0.3);
+      if (found) setCurrent(found.id);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
   }, []);
   return (
     <nav aria-label={t('form.steps')} className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-paper/90 px-4 pt-2 backdrop-blur">
@@ -161,14 +171,17 @@ function SongForm({
   // After saving or cancelling, return to where the form was opened from (the song page, the library…).
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/library'));
 
-  const [tuningList, setTuningList] = useState(tunings);
-  const standardId = tuningList.find((x) => x.isStandard)?.id ?? tuningList[0]?.id ?? '';
+  const standardId = tunings.find((x) => x.isStandard)?.id ?? tunings[0]?.id ?? '';
 
   const [title, setTitle] = useState(initial?.title ?? '');
   const [artist, setArtist] = useState(initial?.artist ?? '');
   const [key, setKey] = useState(initial?.key ?? '');
   const [capo, setCapo] = useState(initial?.capo ?? 0);
-  const [tuningId, setTuningId] = useState(initial?.tuningId ?? standardId);
+  // The tuning is picked string by string. Until it is touched the song keeps its stored tuning (even one that is free text).
+  const initialTuning = tunings.find((x) => x.id === initial?.tuningId);
+  const [strings, setStrings] = useState<string[]>(() => (initialTuning && !initialTuning.isStandard ? tuningStrings(initialTuning.notes) : null) ?? standardStrings());
+  const [tuningTouched, setTuningTouched] = useState(false);
+  const tuningId = initial?.tuningId ?? standardId;
   const [tempo, setTempo] = useState(initial?.tempo ? String(initial.tempo) : '');
   const [duration, setDuration] = useState(initial?.durationSec ? formatDuration(initial.durationSec) : '');
   const [performerIds, setPerformerIds] = useState<string[]>(initial?.defaultPerformerIds ?? []);
@@ -181,7 +194,6 @@ function SongForm({
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
 
-  const [newTuningOpen, setNewTuningOpen] = useState(false);
   const [keptPdfs, setKeptPdfs] = useState<PdfInfo[]>(initialPdfs);
   const [newPdfs, setNewPdfs] = useState<PendingPdf[]>([]);
   const [errors, setErrors] = useState<Errors>({});
@@ -189,7 +201,7 @@ function SongForm({
   const [message, setMessage] = useState<string | null>(null);
 
   // Dirty: the form as it was when it opened, against now. Progress: how much of the usual is filled in.
-  const snapshot = JSON.stringify([title, artist, key, capo, tuningId, tempo, duration, performerIds, chordpro, instrumentIds, partTexts, notes, tags, tagInput, keptPdfs.map((f) => f.id), newPdfs.map((f) => f.key)]);
+  const snapshot = JSON.stringify([title, artist, key, capo, tuningTouched ? strings : tuningId, tempo, duration, performerIds, chordpro, instrumentIds, partTexts, notes, tags, tagInput, keptPdfs.map((f) => f.id), newPdfs.map((f) => f.key)]);
   const [opened] = useState(snapshot);
   const dirty = snapshot !== opened;
   const progress =
@@ -228,11 +240,13 @@ function SongForm({
     setNewPdfs((list) => [...list, ...Array.from(files).map((file) => ({ key: newId(), file, instrumentId }))]);
   }
 
-  async function createTuning(values: { name: string; notes: string }) {
-    const created = await store.tunings.create({ bandId: band.id, isStandard: false, ...values });
-    setTuningList((list) => [...list, created]);
-    setTuningId(created.id);
-    setNewTuningOpen(false);
+  /** The stored tuning that matches the strings picked; a new one is created the first time a combination is used. */
+  async function tuningFor(picked: readonly string[]): Promise<string> {
+    if (isStandardStrings(picked)) return standardId;
+    const list = await store.tunings.listBy('bandId', band.id);
+    const same = list.find((x) => !x.isStandard && (tuningStrings(x.notes) ? stringsKey(tuningStrings(x.notes)!) === stringsKey(picked) : false));
+    if (same) return same.id;
+    return (await store.tunings.create({ bandId: band.id, isStandard: false, name: nameForStrings(picked), notes: picked.join(' ') })).id;
   }
 
   async function onSubmit(e: FormEvent) {
@@ -272,7 +286,7 @@ function SongForm({
         capo,
         tempo: tempoValue,
         durationSec: parsedDuration.seconds,
-        tuningId,
+        tuningId: tuningTouched ? await tuningFor(strings) : tuningId,
         defaultPerformerIds: performerIds,
         instrumentIds,
         chordpro,
@@ -389,21 +403,10 @@ function SongForm({
               options={Array.from({ length: 13 }, (_, n) => ({ value: String(n), label: n === 0 ? t('capo.none') : String(n) }))}
             />
           </Field>
-          <Field label={t('field.tuning')}>
-            <Select
-              label={t('field.tuning')}
-              value={tuningId}
-              onChange={(v) => (v === NEW_TUNING ? setNewTuningOpen(true) : setTuningId(v))}
-              options={[
-                ...tuningList.map((x) => ({ value: x.id, label: x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}` })),
-                { value: NEW_TUNING, label: t('tuning.addNew') },
-              ]}
-            />
-          </Field>
         </div>
-        {newTuningOpen && (
-          <TuningForm title={t('tuning.newTitle')} onSubmit={createTuning} onCancel={() => setNewTuningOpen(false)} />
-        )}
+        <FieldGroup legend={t('field.tuning')}>
+          <TuningPicker strings={strings} onChange={(next) => { setStrings(next); setTuningTouched(true); }} />
+        </FieldGroup>
 
         <FieldGroup legend={t('field.performers')}>
           <div className="flex flex-wrap gap-2">

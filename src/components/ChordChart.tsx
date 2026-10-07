@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { transposeChord, type Accidentals } from '../core/chords';
 import { chartSections, type ChartLine, type ParsedChart, type SectionKind } from '../core/chordpro';
 import { calmDevice } from '../hooks/useHomeMotion';
+import { elementAtReadingLine } from '../lib/readingLine';
 import { useT, type MessageKey } from '../i18n';
 
 const SECTION_LABELS: Partial<Record<SectionKind, MessageKey>> = {
@@ -102,13 +103,7 @@ export function ChordChart({
       frame = 0;
       const nodes = [...el.querySelectorAll<HTMLElement>('[data-section]')];
       if (nodes.length === 0 || el.getBoundingClientRect().height === 0) return;
-      const h = window.innerHeight;
-      const base = h * 0.35;
-      const remaining = document.documentElement.scrollHeight - h - window.scrollY;
-      const span = h - base;
-      const line = remaining >= span ? base : base + span * (1 - Math.max(0, remaining) / span);
-      let current = nodes[0]!;
-      for (const n of nodes) if (n.getBoundingClientRect().top <= line) current = n;
+      const current = elementAtReadingLine(nodes)!;
       const index = Number(current.dataset.section);
       if (index === last) return;
       last = index;

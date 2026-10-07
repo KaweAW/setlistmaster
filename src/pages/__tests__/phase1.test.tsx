@@ -48,7 +48,7 @@ describe('library', () => {
 });
 
 describe('song form', () => {
-  it('creates a song with every field, including a tuning created on the fly and a PDF', async () => {
+  it('creates a song with every field, including a tuning picked string by string and a PDF', async () => {
     const { store, band } = await setup('/library/new');
     const title = await screen.findByLabelText('Title');
 
@@ -63,15 +63,12 @@ describe('song form', () => {
     fireEvent.change(screen.getByLabelText('Tempo (BPM)'), { target: { value: '102' } });
     fireEvent.change(screen.getByLabelText('Duration (m:ss)'), { target: { value: '5:18' } });
 
-    // tuning created on the fly
-    await choose('Tuning', '__new__');
-    await screen.findByRole('heading', { name: 'New tuning' });
-    const form = document.body;
-    const nameInputs = within(form).getAllByLabelText('Name');
-    fireEvent.change(nameInputs[0]!, { target: { value: 'Drop C' } });
-    fireEvent.change(within(form).getByLabelText('Notes (e.g. D-G-C-F-A-D)'), { target: { value: 'C G C F A D' } });
-    fireEvent.click(within(form).getAllByRole('button', { name: 'Save' })[0]!);
-    await waitFor(async () => expect((await store.tunings.listBy('bandId', band.id)).some((x) => x.name === 'Drop C')).toBe(true));
+    // tuning picked string by string: the lowest string down a whole step makes Drop D
+    expect(screen.getByText('Standard')).toBeTruthy();
+    await choose('String 6', 'D');
+    expect(screen.getByText('Drop D')).toBeTruthy();
+    await choose('String 5', 'C');
+    await choose('String 4', 'C');
 
     // performers, tags, chords, notes
     fireEvent.click(screen.getByRole('button', { name: /Kawe/ }));
@@ -101,7 +98,7 @@ describe('song form', () => {
       artist: 'Soundgarden', key: 'Em', capo: 2, tempo: 102, durationSec: 318,
       chordpro: '[Em]Black hole [G]sun', notes: 'slow intro', tags: ['grunge'],
     });
-    expect(tunings.find((x) => x.id === saved.tuningId)?.name).toBe('Drop C');
+    expect(tunings.find((x) => x.id === saved.tuningId)?.notes).toBe('D C C G B E');
     expect(saved.defaultPerformerIds).toHaveLength(1);
     const stored = await songAttachments(store, saved.id);
     expect(stored.map((f) => [f.name, f.instrumentId])).toEqual([['sun.pdf', undefined]]);
