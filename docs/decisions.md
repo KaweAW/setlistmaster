@@ -365,3 +365,16 @@ and what still has to be tried by hand on real devices.
   the page while the finger moves; the highlight under the tabs is positioned by `clamp(0, idx + drag, 1)`, so it moves 1:1 with the
   finger and settles on release. On a deliberate swipe the old content keeps sliding out and the new band's content comes in from
   the other side (`band-in-left/right`). Reduced motion removes the movement.
+
+## Phase 14 — Bands page and safe deletion
+- Settings no longer lists bands: it has one card linking to **Bands and account** (`/bands`). That page is the login (when signed
+  out), then create a band, join with an invitation link or code, and the bands in three groups: **owned** (creator), **joined**
+  (editor / viewer) and **only on this device**.
+- `/bands/:bandId`: rename and notes (creator, or anyone for a local band), sync state, members and invitations, and a danger zone.
+  Long notes are clamped to three lines and open in a popup (read for everyone, edit for the creator).
+- **Deleting a shared band** (creator only) removes the setlists, songs, PDFs and members for everyone. The dialog shows the counts,
+  offers a backup download, and enables the button only when the exact band name is typed. Members are not emailed (no mail
+  server); the `notices` table gets one row per member and their app shows a banner until dismissed. On their device the band becomes
+  a normal local copy. "Keep a copy here" lets the creator keep a local copy too. Members use **Leave** instead.
+- Migration `0004_band_management.sql`: `bands.notes`, `update_band`, `delete_band`, `notices`, `dismiss_notice`.
+- Duplicate "Personal" bands are prevented by a single-flight, database-checked `ensurePersonalBand`.

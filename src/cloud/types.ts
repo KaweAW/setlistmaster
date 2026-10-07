@@ -5,6 +5,16 @@ export interface CloudUser {
   email: string;
 }
 
+/** Told to a person while they were away: a band they were in was deleted. */
+export interface CloudNotice {
+  id: string;
+  kind: 'band_deleted';
+  bandId: string;
+  bandName: string;
+  byEmail: string;
+  createdAt: number;
+}
+
 export type CloudRole = 'creator' | 'editor' | 'viewer';
 export type InviteRole = 'editor' | 'viewer';
 
@@ -56,7 +66,13 @@ export interface CloudApi {
   createBand(id: string, name: string): Promise<void>;
   bandName(bandId: string): Promise<string | null>;
   /** Every band the signed-in person belongs to, wherever it was created (so they show up on a new device). */
-  myBands(): Promise<{ id: string; name: string; role: CloudRole }[]>;
+  myBands(): Promise<{ id: string; name: string; notes: string; role: CloudRole }[]>;
+  /** Creator only. */
+  updateBand(bandId: string, name: string, notes: string): Promise<void>;
+  /** Creator only: deletes the band with all its data and tells the other members. Returns how many were told. */
+  deleteBand(bandId: string): Promise<number>;
+  notices(): Promise<CloudNotice[]>;
+  dismissNotice(id: string): Promise<void>;
   myRole(bandId: string): Promise<CloudRole | null>;
   members(bandId: string): Promise<RemoteMember[]>;
   invitations(bandId: string): Promise<RemoteInvitation[]>;

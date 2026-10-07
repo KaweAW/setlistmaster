@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import { createBackup, parseBackup, type BackupError, type BackupSummary } from '../core/backup';
 import { formatBytes, formatDate } from '../core/format';
 import type { StoreSnapshot } from '../core/types';
+import type { DataStore } from '../data/repository';
 import { useData } from '../data/DataProvider';
 import { useT, type MessageKey } from '../i18n';
 import { reloadApp } from '../lib/reload';
@@ -116,6 +117,15 @@ interface Pending {
   snapshot: StoreSnapshot;
   summary: BackupSummary;
   exportedAt: number;
+}
+
+/** Saves a backup of everything on this device (used by Settings and before deleting a band). Returns false if the person cancelled. */
+export async function downloadBackup(store: DataStore, markDone: () => void): Promise<boolean> {
+  const backup = createBackup(await store.bulk.readAll(), Date.now());
+  const result = await saveFile(new Blob([JSON.stringify(backup)], { type: 'application/json' }), `scaletta-backup-${new Date().toISOString().slice(0, 10)}.json`);
+  if (result === 'cancelled') return false;
+  markDone();
+  return true;
 }
 
 export function BackupSection() {

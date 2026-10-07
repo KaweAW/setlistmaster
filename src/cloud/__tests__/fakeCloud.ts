@@ -1,6 +1,6 @@
 import { FakeRemote } from '../../sync/__tests__/fakeRemote';
 import {
-  CloudError, type CloudApi, type CloudRole, type CloudUser, type InvitationPreview, type InviteRole,
+  CloudError, type CloudApi, type CloudNotice, type CloudRole, type CloudUser, type InvitationPreview, type InviteRole,
   type RemoteInvitation, type RemoteMember,
 } from '../types';
 
@@ -13,6 +13,8 @@ interface Invite extends RemoteInvitation {
 export class FakeCloudServer {
   readonly remote = new FakeRemote();
   readonly bands = new Map<string, string>();
+  readonly notes = new Map<string, string>();
+  readonly notices: (CloudNotice & { userId: string })[] = [];
   readonly members = new Map<string, RemoteMember[]>();
   readonly invites: Invite[] = [];
   /** `${bandId}:${userId}` → the instrument that member plays. */
@@ -43,7 +45,31 @@ export class FakeCloudServer {
       async bandName(id) { return server.bands.get(id) ?? null; },
       async myBands() {
         return [...server.members.entries()]
-          .flatMap(([bandId, list]) => list.filter((m) => m.userId === current?.id).map((m) => ({ id: bandId, name: server.bands.get(bandId)!, role: m.role })));
+          .flatMap(([bandId, list]) => list.filter((m) => m.userId === current?.id).map((m) => ({ id: bandId, name: server.bands.get(bandId)!, notes: server.notes.get(bandId) ?? '', role: m.role })));
+      },
+      async updateBand(bandId, name, notes) {
+        needCreator(bandId);
+        if (!name.trim()) throw new CloudError('other', 'invalid_name');
+        server.bands.set(bandId, name.trim());
+        server.notes.set(bandId, notes);
+      },
+      async deleteBand(bandId) {
+        needCreator(bandId);
+        const others = server.members.get(bandId)!.filter((m) => m.userId !== current!.id);
+        for (const m of others) {
+          server.notices.push({ id: `n${++server.n}`, userId: m.userId, kind: 'band_deleted', bandId, bandName: server.bands.get(bandId)!, byEmail: current!.email, createdAt: Date.now() });
+        }
+        server.bands.delete(bandId);
+        server.notes.delete(bandId);
+        server.members.delete(bandId);
+        return others.length;
+      },
+      async notices() {
+        return server.notices.filter((n) => n.userId === current?.id).map((n) => ({ id: n.id, kind: n.kind, bandId: n.bandId, bandName: n.bandName, byEmail: n.byEmail, createdAt: n.createdAt }));
+      },
+      async dismissNotice(id) {
+        const i = server.notices.findIndex((n) => n.id === id && n.userId === current?.id);
+        if (i >= 0) server.notices.splice(i, 1);
       },
       async myRole(id) { return roleOf(id); },
       async members(id) { return [...(server.members.get(id) ?? [])]; },

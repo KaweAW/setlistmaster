@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Band } from '../core/types';
+import { createLocalBand, removeLocalBand } from '../data/bands';
 import { useData } from '../data/DataProvider';
 import { useDataRevision } from '../state/dataRevision';
 import { useUiStore } from '../state/uiStore';
 import { SyncEngine, type BandSyncStatus } from '../sync/engine';
 import { cloudConfigured } from './config';
 import { createSupabaseApi } from './supabaseApi';
-import type { CloudApi, CloudRole, CloudUser } from './types';
+import type { CloudApi, CloudNotice, CloudRole, CloudUser } from './types';
 
 export interface CloudValue {
   /** The project has Supabase settings. Without them everything below is inert and the app is purely local. */
@@ -26,6 +27,15 @@ export interface CloudValue {
   unlink(bandId: string): Promise<void>;
   syncNow(bandId?: string): Promise<void>;
   refreshRole(bandId: string): Promise<void>;
+  /** A new band on this device, shared at once (the person is its creator). */
+  createBand(name: string): Promise<Band>;
+  /** Name and notes; for a shared band only its creator can change them (the cloud is told too). */
+  saveBand(bandId: string, patch: { name: string; notes: string }): Promise<void>;
+  /** Creator only. Deletes the band for everyone and tells the other members; returns how many. `keepCopy` leaves a personal copy on this device. */
+  deleteBand(bandId: string, options: { keepCopy: boolean }): Promise<number>;
+  /** Things the cloud told this person while they were away (a band they were in was deleted). */
+  notices: readonly CloudNotice[];
+  dismissNotice(id: string): Promise<void>;
 }
 
 const inert: CloudValue = {
@@ -35,6 +45,11 @@ const inert: CloudValue = {
   unlink: () => Promise.resolve(),
   syncNow: () => Promise.resolve(),
   refreshRole: () => Promise.resolve(),
+  createBand: () => Promise.reject(new Error('cloud not configured')),
+  saveBand: () => Promise.reject(new Error('cloud not configured')),
+  deleteBand: () => Promise.reject(new Error('cloud not configured')),
+  notices: [],
+  dismissNotice: () => Promise.resolve(),
 };
 
 const CloudContext = createContext<CloudValue>(inert);
@@ -95,6 +110,7 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
   const [linked, setLinked] = useState<ReadonlySet<string>>(new Set());
   const [roles, setRoles] = useState<Record<string, CloudRole | null>>({});
   const [statuses, setStatuses] = useState<Record<string, BandSyncStatus>>({});
+  const [notices, setNotices] = useState<readonly CloudNotice[]>([]);
   // The engine asks for the roles when it runs, not when it is built: keep the latest in a box it can read.
   const [roleMap] = useState(() => new Map<string, CloudRole | null>());
   useEffect(() => {
@@ -172,9 +188,13 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
         let added = false;
         for (const b of mine) {
           if (!(await store.bands.has(b.id))) {
-            await store.bands.create({ id: b.id, name: b.name });
+            await store.bands.create({ id: b.id, name: b.name, notes: b.notes });
             await store.sync.linkBand(b.id); // reading only: nothing of ours goes up
             added = true;
+          } else {
+            const local = await store.bands.get(b.id);
+            // The creator may have renamed the band or changed its notes elsewhere.
+            if (local && (local.name !== b.name || (local.notes ?? '') !== b.notes)) await store.bands.update(b.id, { name: b.name, notes: b.notes });
           }
           if (alive) setRoles((r) => ({ ...r, [b.id]: b.role }));
         }
@@ -187,6 +207,37 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
       alive = false;
     };
   }, [api, signedIn, store, reloadLinked]);
+
+  // What the cloud told us while we were away: a band we were in was deleted. Its data stays here, as a local copy.
+  useEffect(() => {
+    if (!api || !signedIn) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const list = await api.notices();
+        if (!alive) return;
+        setNotices(list);
+        let changed = false;
+        for (const n of list) {
+          if (n.kind === 'band_deleted' && (await store.sync.linkedBands()).includes(n.bandId)) {
+            engine?.unwatch(n.bandId);
+            await store.sync.unlinkBand(n.bandId);
+            changed = true;
+          }
+        }
+        if (changed && alive) await reloadLinked();
+      } catch {
+        /* offline, or a project without the notices table yet */
+      }
+    };
+    void load();
+    const onVisible = () => document.visibilityState === 'visible' && void load();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [api, engine, signedIn, store, reloadLinked]);
 
   // Local edits go out shortly after (several edits in a row travel together).
   useEffect(() => {
@@ -261,8 +312,45 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
         else await engine.syncAll();
       },
       refreshRole,
+      async createBand(name) {
+        const band = await createLocalBand(store, name, useUiStore.getState().language);
+        await api.createBand(band.id, band.name);
+        await store.sync.linkBand(band.id, { upload: true });
+        setRoles((r) => ({ ...r, [band.id]: 'creator' }));
+        await reloadLinked();
+        await engine.syncBand(band.id);
+        return band;
+      },
+      async saveBand(bandId, patch) {
+        const name = patch.name.trim();
+        if (!name) throw new Error('invalid_name');
+        if ((await store.sync.linkedBands()).includes(bandId)) await api.updateBand(bandId, name, patch.notes);
+        await store.bands.update(bandId, { name, notes: patch.notes });
+      },
+      async deleteBand(bandId, { keepCopy }) {
+        const attachments = await store.attachments.listBy('bandId', bandId);
+        for (const a of attachments) await api.remote.removeBlob(bandId, a.id).catch(() => {}); // the files first: the band row takes the permission with it
+        const told = await api.deleteBand(bandId);
+        engine.unwatch(bandId);
+        await store.sync.unlinkBand(bandId);
+        setStatuses((s) => { const rest = { ...s }; delete rest[bandId]; return rest; });
+        setRoles((r) => { const rest = { ...r }; delete rest[bandId]; return rest; });
+        const band = await store.bands.get(bandId);
+        if (keepCopy && band) {
+          const suffix = useUiStore.getState().language === 'it' ? 'copia' : 'copy';
+          await store.bands.update(bandId, { name: `${band.name} (${suffix})` });
+        } else await removeLocalBand(store, bandId);
+        if (useUiStore.getState().activeBandId === bandId) useUiStore.getState().setActiveBandId(null);
+        await reloadLinked();
+        return told;
+      },
+      notices,
+      async dismissNotice(id) {
+        await api.dismissNotice(id);
+        setNotices((list) => list.filter((n) => n.id !== id));
+      },
     };
-  }, [api, engine, user, linked, roles, statuses, store, reloadLinked, refreshRole]);
+  }, [api, engine, user, linked, roles, statuses, notices, store, reloadLinked, refreshRole]);
 
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;
 }

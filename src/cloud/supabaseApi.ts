@@ -3,7 +3,7 @@ import type { SyncKind, SyncRecord } from '../core/sync';
 import { RemoteError, type RemoteClient } from '../sync/engine';
 import { cloudConfig } from './config';
 import {
-  CloudError, type CloudApi, type CloudErrorCode, type CloudRole, type CloudUser, type InvitationPreview,
+  CloudError, type CloudApi, type CloudErrorCode, type CloudNotice, type CloudRole, type CloudUser, type InvitationPreview,
   type InvitationStatus, type InviteRole, type RemoteInvitation, type RemoteMember,
 } from './types';
 
@@ -207,10 +207,31 @@ export function createSupabaseApi(): CloudApi {
     async myBands() {
       const user = await this.currentUser();
       if (!user) return [];
-      const rows = await select<{ band_id: string; role: CloudRole; bands: { name: string } | { name: string }[] | null }[]>((db) =>
-        db.from('members').select('band_id,role,bands(name)').eq('user_id', user.id),
+      type Row = { band_id: string; role: CloudRole; bands: { name: string; notes?: string } | { name: string; notes?: string }[] | null };
+      const one = (r: Row) => (Array.isArray(r.bands) ? r.bands[0] : r.bands);
+      let rows: Row[];
+      try {
+        rows = await select<Row[]>((db) => db.from('members').select('band_id,role,bands(name,notes)').eq('user_id', user.id));
+      } catch {
+        // a project that has not run migration 0004 yet has no notes column
+        rows = await select<Row[]>((db) => db.from('members').select('band_id,role,bands(name)').eq('user_id', user.id));
+      }
+      return rows.map((r) => ({ id: r.band_id, role: r.role, name: one(r)?.name ?? 'Band', notes: one(r)?.notes ?? '' }));
+    },
+    async updateBand(bandId, name, notes) {
+      await rpc('update_band', { p_band: bandId, p_name: name, p_notes: notes });
+    },
+    async deleteBand(bandId) {
+      return rpc<number>('delete_band', { p_band: bandId });
+    },
+    async notices() {
+      const rows = await select<{ id: string; kind: 'band_deleted'; band_id: string; band_name: string; by_email: string; created_at: string }[]>((db) =>
+        db.from('notices').select('id,kind,band_id,band_name,by_email,created_at').order('created_at', { ascending: true }),
       );
-      return rows.map((r) => ({ id: r.band_id, role: r.role, name: (Array.isArray(r.bands) ? r.bands[0]?.name : r.bands?.name) ?? 'Band' }));
+      return rows.map((r): CloudNotice => ({ id: r.id, kind: r.kind, bandId: r.band_id, bandName: r.band_name, byEmail: r.by_email, createdAt: Date.parse(r.created_at) }));
+    },
+    async dismissNotice(id) {
+      await rpc('dismiss_notice', { p_id: id });
     },
     async myRole(bandId) {
       return (await rpc<string | null>('member_role', { p_band: bandId })) as CloudRole | null;

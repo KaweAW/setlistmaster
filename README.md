@@ -72,7 +72,7 @@ HTTPS is required for the PWA features, and every unknown path must return `inde
 Without a cloud project everything works on one device, and the sharing section simply says it is not set up.
 To enable it you need a free [Supabase](https://supabase.com) project:
 
-1. In the Supabase **SQL editor**, run the files in `supabase/migrations/` once each, in order: `0001_cloud.sql`, `0002_instruments.sql`, `0003_pdf_storage.sql` (if you already ran some, run only the ones after the last you ran). The third creates the private `pdfs` storage bucket and its access rules; nothing to set up by hand in Storage.
+1. In the Supabase **SQL editor**, run the files in `supabase/migrations/` once each, in order: `0001_cloud.sql`, `0002_instruments.sql`, `0003_pdf_storage.sql`, `0004_band_management.sql` (if you already ran some, run only the ones after the last you ran). The third creates the private `pdfs` storage bucket and its access rules; nothing to set up by hand in Storage.
 2. **Authentication > Providers**: keep Email on (optionally turn off "Confirm email").
    **Authentication > URL configuration**: set Site URL to the address of the published app.
 3. Copy the project URL and the public key (Project settings > API) into `VITE_SUPABASE_URL` and

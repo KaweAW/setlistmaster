@@ -16,7 +16,7 @@ const baseShape = {
 
 const scopedShape = { ...baseShape, bandId: id };
 
-export const bandSchema = z.object({ ...baseShape, name: z.string().min(1) });
+export const bandSchema = z.object({ ...baseShape, name: z.string().min(1), /** Free text about the band (where we rehearse, what to bring…). */ notes: z.string().optional() });
 
 export const memberRoleSchema = z.enum(['owner', 'editor', 'viewer']);
 export const memberSchema = z.object({
