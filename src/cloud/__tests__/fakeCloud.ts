@@ -41,6 +41,10 @@ export class FakeCloudServer {
         server.members.set(id, [{ userId: current!.id, email: current!.email, role: 'creator' }]);
       },
       async bandName(id) { return server.bands.get(id) ?? null; },
+      async myBands() {
+        return [...server.members.entries()]
+          .flatMap(([bandId, list]) => list.filter((m) => m.userId === current?.id).map((m) => ({ id: bandId, name: server.bands.get(bandId)!, role: m.role })));
+      },
       async myRole(id) { return roleOf(id); },
       async members(id) { return [...(server.members.get(id) ?? [])]; },
       async invitations(id) { needCreator(id); return server.invites.filter((i) => i.bandId === id); },

@@ -55,6 +55,8 @@ export interface CloudApi {
 
   createBand(id: string, name: string): Promise<void>;
   bandName(bandId: string): Promise<string | null>;
+  /** Every band the signed-in person belongs to, wherever it was created (so they show up on a new device). */
+  myBands(): Promise<{ id: string; name: string; role: CloudRole }[]>;
   myRole(bandId: string): Promise<CloudRole | null>;
   members(bandId: string): Promise<RemoteMember[]>;
   invitations(bandId: string): Promise<RemoteInvitation[]>;

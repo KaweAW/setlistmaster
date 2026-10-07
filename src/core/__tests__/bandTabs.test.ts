@@ -11,10 +11,13 @@ describe('groupBands', () => {
     expect(g.personal?.id).toBe('own');
     expect(g.shared.map((b) => b.id)).toEqual(['second', 'joined']);
   });
-  it('once the own band is shared there is no personal tab', () => {
+  it('the oldest band that is not shared is the personal one', () => {
     const g = groupBands(bands, new Set(['own']));
-    expect(g.personal).toBeUndefined();
+    expect(g.personal?.id).toBe('second');
     expect(g.shared.map((b) => b.id)).toEqual(['own']);
+  });
+  it('without a band that stays local there is no personal tab (the home makes one)', () => {
+    expect(groupBands(bands, new Set(['own', 'second', 'joined'])).personal).toBeUndefined();
   });
   it('copes with no bands', () => expect(groupBands([], new Set())).toEqual({ personal: undefined, shared: [] }));
 });
