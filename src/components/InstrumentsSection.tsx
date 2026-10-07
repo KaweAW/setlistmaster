@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useState, type FormEvent } from 'react';
 import { instrumentUsage } from '../core/usage';
 import { INSTRUMENT_SUGGESTIONS } from '../data/instruments';
@@ -79,14 +80,12 @@ export function InstrumentsSection({ Title, canEdit = true }: { Title: (p: { chi
       <Title>{t('settings.instruments')}</Title>
       <p className="mb-3 text-sm text-soft">{t('instrument.hint')}</p>
       <Field label={t('instrument.mine')} className="mb-4 max-w-xs">
-        <select
-          className={inputClass}
+        <Select
+          label={t('instrument.mine')}
           value={mine.id ?? ''}
-          onChange={(e) => void mine.set(e.target.value || null)}
-        >
-          <option value="">{t('instrument.mineNone')}</option>
-          {instruments.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-        </select>
+          onChange={(v) => void mine.set(v || null)}
+          options={[{ value: '', label: t('instrument.mineNone') }, ...instruments.map((i) => ({ value: i.id, label: i.name }))]}
+        />
       </Field>
       <ul className="divide-y divide-line border-y border-line">
         {instruments.map((i) => (

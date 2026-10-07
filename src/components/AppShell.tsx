@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useMatch } from 'react-router-dom';
 import { useT, type MessageKey } from '../i18n';
 import { useUiStore } from '../state/uiStore';
+import { AmbientBackground } from './AmbientBackground';
 import { NoticeBar } from './NoticeBar';
 
 const icon = (path: ReactNode) => (
@@ -26,7 +27,8 @@ export default function AppShell() {
   const onSetlist = useMatch('/setlist/:setlistId') !== null; // a hook: always called, never inside a condition
   const hideNav = stage && onSetlist;
   return (
-    <div className={`min-h-screen ${hideNav ? '' : 'md:pl-56'}`}>
+    <div className={`relative isolate min-h-screen ${hideNav ? '' : 'md:pl-56'}`}>
+      {!stage && <AmbientBackground />}
       <aside className={`fixed inset-y-0 left-0 hidden w-56 flex-col bg-chrome text-white ${hideNav ? '' : 'md:flex'}`}>
         <span aria-hidden className="absolute inset-y-0 right-0 w-[5px] bg-gradient-to-b from-lei via-coro to-io" />
         <div className="px-6 pb-6 pt-8 font-display text-3xl font-bold uppercase leading-none tracking-wide">

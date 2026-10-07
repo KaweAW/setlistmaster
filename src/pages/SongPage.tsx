@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { SwipeDirection } from '../core/autoscroll';
@@ -265,17 +266,14 @@ function SongView({
             ♩ {song.tempo ?? ''}
           </button>
           {tabs.length > 0 && (
-            <select
-              aria-label={t('part.select')}
+            <Select
+              label={t('part.select')}
+              variant="compact"
+              className="min-w-0 flex-1"
               value={onText ? 'text' : tab}
-              onChange={(e) => setTab(e.target.value)}
-              className="h-11 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 text-sm font-semibold text-ink"
-            >
-              <option value="text">{t('part.text')}</option>
-              {tabs.map((x) => (
-                <option key={x.instrument.id} value={x.instrument.id}>{x.instrument.name}</option>
-              ))}
-            </select>
+              onChange={setTab}
+              options={[{ value: 'text', label: t('part.text') }, ...tabs.map((x) => ({ value: x.instrument.id, label: x.instrument.name }))]}
+            />
           )}
         </div>
         {metro && <MetronomePanel key={song.id} initialBpm={song.tempo} />}
@@ -294,14 +292,14 @@ function SongView({
           <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} />
         )}
         {mode === 'pdf' && pdf && tabPdfs.length > 1 && (
-          <select
-            aria-label={t('part.pdfSelect')}
+          <Select
+            label={t('part.pdfSelect')}
+            variant="compact"
+            className="mb-3 w-full"
             value={pdf.id}
-            onChange={(e) => setPdfChoice((x) => ({ ...x, [tab]: e.target.value }))}
-            className="mb-3 h-11 w-full rounded-md border border-line bg-surface px-2 text-sm font-semibold text-ink"
-          >
-            {tabPdfs.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
-          </select>
+            onChange={(v) => setPdfChoice((x) => ({ ...x, [tab]: v }))}
+            options={tabPdfs.map((f) => ({ value: f.id, label: f.name }))}
+          />
         )}
         {mode === 'pdf' && pdf && (
           <Suspense fallback={<p className="py-6 text-center text-soft">{t('chart.loadingPdf')}</p>}>

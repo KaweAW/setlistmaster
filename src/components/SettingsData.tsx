@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import { createBackup, parseBackup, type BackupError, type BackupSummary } from '../core/backup';
 import { formatBytes, formatDate } from '../core/format';
@@ -10,7 +11,7 @@ import { saveFile } from '../lib/saveFile';
 import { useStorageStore } from '../state/storageStore';
 import { useUiStore, type Theme } from '../state/uiStore';
 import { StageToggle } from './StageToggle';
-import { Button, buttonClass, Field, inputClass } from './ui';
+import { Button, buttonClass, Field } from './ui';
 
 export function SectionTitle({ children }: { children: string }) {
   return (
@@ -29,10 +30,12 @@ export function AppearanceSection() {
       <SectionTitle>{t('settings.appearance')}</SectionTitle>
       <div className="space-y-4">
         <Field label={t('settings.theme')} className="max-w-xs">
-          <select className={inputClass} value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
-            <option value="light">{t('theme.light')}</option>
-            <option value="dark">{t('theme.dark')}</option>
-          </select>
+          <Select
+            label={t('settings.theme')}
+            value={theme}
+            onChange={(v) => setTheme(v as Theme)}
+            options={[{ value: 'light', label: t('theme.light') }, { value: 'dark', label: t('theme.dark') }]}
+          />
         </Field>
         <div>
           <p className="mb-1 text-sm font-semibold">{t('settings.stage')}</p>

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { choose } from '../../components/__tests__/choose';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -104,7 +105,7 @@ describe('the instrument I play', () => {
     cleanup();
     mount('/settings', server.as(KAWE), store);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
-    fireEvent.change(await screen.findByLabelText('The instrument I play'), { target: { value: bass.id } });
+    await choose('The instrument I play', bass.id);
     await waitFor(() => expect(server.instruments.get(`${band.id}:${KAWE.id}`)).toBe(bass.id));
 
     cleanup();

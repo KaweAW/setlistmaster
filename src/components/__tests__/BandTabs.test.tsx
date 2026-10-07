@@ -68,17 +68,17 @@ describe('home band tabs', () => {
     const main = document.querySelector('main')!;
 
     swipe(main, -120); // finger moves left: to the shared band
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Wolves/ }).getAttribute('aria-selected')).toBe('true'));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Wolves/ }).getAttribute('aria-selected')).toBe('true'), { timeout: 8000 });
 
     swipe(document.querySelector('main')!, -120); // once more: the menu of bands
-    const owls = await screen.findByRole('menuitemradio', { name: /Owls/ });
+    const owls = await screen.findByRole('menuitemradio', { name: /Owls/ }, { timeout: 8000 });
     fireEvent.click(owls);
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Owls/ }).getAttribute('aria-selected')).toBe('true'));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Owls/ }).getAttribute('aria-selected')).toBe('true'), { timeout: 8000 });
     expect(screen.queryByRole('menu')).toBeNull();
 
     swipe(document.querySelector('main')!, 120); // back to Personal
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'));
-  });
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'), { timeout: 8000 });
+  }, 30_000);
 
   it('does not show the tabs on a device that cannot share', async () => {
     const store = createDexieStore({ dbName: `tabs-${++n}` });

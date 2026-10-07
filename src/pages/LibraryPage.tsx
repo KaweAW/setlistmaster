@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { RemoteFlash } from '../components/RemoteFlash';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -61,29 +62,34 @@ export default function LibraryPage() {
       />
 
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <select className={inputClass} aria-label={t('library.allTags')} value={filters.tag} onChange={(e) => set({ tag: e.target.value })}>
-          <option value="">{t('library.allTags')}</option>
-          {tags.map((tag) => (
-            <option key={tag} value={tag}>{tag}</option>
-          ))}
-        </select>
-        <select className={inputClass} aria-label={t('library.allTunings')} value={filters.tuningId} onChange={(e) => set({ tuningId: e.target.value })}>
-          <option value="">{t('library.allTunings')}</option>
-          {data.tunings.map((x) => (
-            <option key={x.id} value={x.id}>{x.name}</option>
-          ))}
-        </select>
-        <select className={inputClass} aria-label={t('library.allPerformers')} value={filters.performerId} onChange={(e) => set({ performerId: e.target.value })}>
-          <option value="">{t('library.allPerformers')}</option>
-          {data.performers.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select className={inputClass} aria-label={t('library.sort')} value={sort} onChange={(e) => setSort(e.target.value as SongSort)}>
-          <option value="title">{t('library.sort.title')}</option>
-          <option value="artist">{t('library.sort.artist')}</option>
-          <option value="recent">{t('library.sort.recent')}</option>
-        </select>
+        <Select
+          label={t('library.allTags')}
+          value={filters.tag}
+          onChange={(v) => set({ tag: v })}
+          options={[{ value: '', label: t('library.allTags') }, ...tags.map((tag) => ({ value: tag, label: tag }))]}
+        />
+        <Select
+          label={t('library.allTunings')}
+          value={filters.tuningId}
+          onChange={(v) => set({ tuningId: v })}
+          options={[{ value: '', label: t('library.allTunings') }, ...data.tunings.map((x) => ({ value: x.id, label: x.name }))]}
+        />
+        <Select
+          label={t('library.allPerformers')}
+          value={filters.performerId}
+          onChange={(v) => set({ performerId: v })}
+          options={[{ value: '', label: t('library.allPerformers') }, ...data.performers.map((x) => ({ value: x.id, label: x.name }))]}
+        />
+        <Select
+          label={t('library.sort')}
+          value={sort}
+          onChange={(v) => setSort(v as SongSort)}
+          options={[
+            { value: 'title', label: t('library.sort.title') },
+            { value: 'artist', label: t('library.sort.artist') },
+            { value: 'recent', label: t('library.sort.recent') },
+          ]}
+        />
       </div>
 
       <div className="mb-1 mt-4 flex items-center justify-between text-sm text-soft">

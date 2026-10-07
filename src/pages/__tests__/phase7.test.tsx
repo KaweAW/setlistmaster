@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { choose, shown } from '../../components/__tests__/choose';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -75,9 +76,8 @@ describe('instruments in the settings', () => {
 
   it('remembers the instrument I play', async () => {
     const { store, band } = await setup('/settings');
-    const select = (await screen.findByLabelText('The instrument I play')) as HTMLSelectElement;
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
-    fireEvent.change(select, { target: { value: bass.id } });
+    await choose('The instrument I play', bass.id);
     await waitFor(() => expect(useUiStore.getState().myInstruments[band.id]).toBe(bass.id));
   });
 });
@@ -93,7 +93,7 @@ describe('PDFs of a part', () => {
     const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await screen.findByLabelText('Title');
-    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } }); // opens the Bass tab
+    await choose('Add instrument', bass.id); // opens the Bass tab
     fireEvent.change(await screen.findByLabelText('Add PDF for Bass'), { target: { files: [pdfFile('bass1.pdf'), pdfFile('bass2.pdf')] } });
     expect(await screen.findByText(/bass2\.pdf/)).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Text' }));
@@ -123,12 +123,13 @@ describe('PDFs of a part', () => {
         <DataProvider store={store}><AppRoutes /></DataProvider>
       </MemoryRouter>,
     );
-    fireEvent.change(await screen.findByLabelText('Part'), { target: { value: bass.id } });
-    const choose = (await screen.findByLabelText('PDF of this part')) as HTMLSelectElement;
-    expect([...choose.options].map((o) => o.textContent)).toEqual(['bass-a.pdf', 'bass-b.pdf']);
-    fireEvent.change(choose, { target: { value: 'f3' } });
-    expect(choose.value).toBe('f3');
-    fireEvent.change(screen.getByLabelText('Part'), { target: { value: 'text' } });
+    await choose('Part', bass.id);
+    fireEvent.click(await screen.findByLabelText('PDF of this part', { selector: 'button' }));
+    const list = await screen.findByRole('listbox', { name: 'PDF of this part' });
+    expect([...list.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toEqual(['bass-a.pdf', 'bass-b.pdf']);
+    fireEvent.click(list.querySelector('[data-value="f3"]')!);
+    await waitFor(async () => expect(await shown('PDF of this part')).toBe('bass-b.pdf'));
+    await choose('Part', 'text');
     expect(screen.queryByLabelText('PDF of this part')).toBeNull(); // one PDF: nothing to choose
   });
 
@@ -152,7 +153,7 @@ describe('parts of a song', () => {
     const { store, band, song } = await setup(({ songId }) => `/library/${songId}`);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await screen.findByLabelText('Title');
-    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } });
+    await choose('Add instrument', bass.id);
     fireEvent.change(await screen.findByLabelText('Chart for Bass (ChordPro)'), { target: { value: '[E]walk [A]down' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -178,18 +179,20 @@ describe('parts of a song', () => {
         </MemoryRouter>,
       );
     view();
-    const select = (await screen.findByLabelText('Part')) as HTMLSelectElement;
-    expect([...select.options].map((o) => o.textContent)).toEqual(['Only text', 'Bass']);
-    expect(select.value).toBe('text');
+    fireEvent.click(await screen.findByLabelText('Part', { selector: 'button' }));
+    const list = await screen.findByRole('listbox', { name: 'Part' });
+    expect([...list.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toEqual(['Only text', 'Bass']);
+    fireEvent.keyDown(list.parentElement!, { key: 'Escape' });
+    expect(await shown('Part')).toBe('Only text');
     expect(screen.getByText('plain')).toBeTruthy();
-    fireEvent.change(select, { target: { value: bass.id } });
+    await choose('Part', bass.id);
     expect(await screen.findByText('line', { exact: false })).toBeTruthy();
     expect(screen.queryByText('plain')).toBeNull();
 
     cleanup();
     useUiStore.setState({ myInstruments: { [band.id]: bass.id } });
     view();
-    expect(((await screen.findByLabelText('Part')) as HTMLSelectElement).value).toBe(bass.id);
+    expect(await shown('Part')).toBe('Bass');
   });
 
   it('travel in a backup', async () => {
@@ -218,7 +221,7 @@ describe('the song form, part by part', () => {
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     await screen.findByLabelText('Title');
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text']);
-    fireEvent.change(screen.getByLabelText('Add instrument'), { target: { value: bass.id } });
+    await choose('Add instrument', bass.id);
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Text', 'Bass']);
     fireEvent.change(await screen.findByLabelText('Chart for Bass (ChordPro)'), { target: { value: '{start_of_tab}\ne|--0--|\n{end_of_tab}' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Text' }));

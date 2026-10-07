@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useRef, useState } from 'react';
 import { insertNote, NOTE_COLORS, type NoteColor } from '../core/chordpro';
 import { formatBytes } from '../core/format';
@@ -106,15 +107,15 @@ export function PartsEditor({
           {shown.map((i) => tab(i.id, i.name))}
         </div>
         {addable.length > 0 && (
-          <select
-            aria-label={t('part.addInstrument')}
+          <Select
+            label={t('part.addInstrument')}
+            variant="dashed"
+            className="w-40 shrink-0"
             value=""
-            onChange={(e) => e.target.value && add(e.target.value)}
-            className="h-11 w-36 shrink-0 rounded-md border border-dashed border-line bg-surface px-2 text-sm font-semibold text-soft"
-          >
-            <option value="">+ {t('part.addInstrument')}</option>
-            {addable.map((i) => (<option key={i.id} value={i.id}>{i.name}</option>))}
-          </select>
+            placeholder={`+ ${t('part.addInstrument')}`}
+            onChange={(v) => v && add(v)}
+            options={addable.map((i) => ({ value: i.id, label: i.name }))}
+          />
         )}
       </div>
 
