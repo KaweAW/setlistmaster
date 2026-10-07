@@ -3,9 +3,11 @@ import type { DataStore } from './repository';
 import { addDefaultInstruments } from './instruments';
 import { addLibrarySongs } from './librarySongs';
 import { seedBand } from './seed';
+import { normalizeTunings } from './tunings';
 
 async function run(store: DataStore, defaultBandName: string, preferredId: string | null, language: 'it' | 'en'): Promise<Band> {
   const bands = await store.bands.listAll();
+  for (const b of bands) await normalizeTunings(store, b.id); // one format for tunings, duplicates merged
   // If duplicates ever exist (e.g. a past race), the oldest band is the canonical one.
   const oldest = [...bands].sort((a, b) => a.createdAt - b.createdAt)[0];
   const preferred = preferredId ? bands.find((b) => b.id === preferredId) : undefined;

@@ -11,12 +11,31 @@ export function parseTuningNotes(text: string): string[] | null {
   const notes: string[] = [];
   for (const token of tokens) {
     const match = NOTE.exec(token);
-    if (!match) return null;
-    const [, letter = '', accidental = '', octave = ''] = match;
-    const sign = accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
-    notes.push(`${letter.toUpperCase()}${sign}${octave}`);
+    if (match) {
+      const [, letter = '', accidental = '', octave = ''] = match;
+      notes.push(`${letter.toUpperCase()}${signOf(accidental)}${octave}`);
+      continue;
+    }
+    const run = compactNotes(token);
+    if (!run) return null;
+    notes.push(...run);
   }
   return notes;
+}
+
+const signOf = (accidental: string) =>
+  accidental === '#' || accidental === '♯' ? '♯' : accidental === 'b' || accidental === '♭' ? '♭' : '';
+
+/** Notes written without separators: "EADGBE", "DbAbDbGbBbEb" (a lowercase b or a # right after a letter is a flat/sharp). */
+function compactNotes(token: string): string[] | null {
+  const notes: string[] = [];
+  const pattern = /([A-G])([#♯♭]|b(?![A-G]*$)|b$)?/gy;
+  let consumed = 0;
+  for (let m = pattern.exec(token); m; m = pattern.exec(token)) {
+    notes.push(`${m[1]}${signOf(m[2] ?? '')}`);
+    consumed = pattern.lastIndex;
+  }
+  return notes.length > 1 && consumed === token.length ? notes : null;
 }
 
 /** Plain-text version ("D G C F A D"), for menus and lists. Unparseable text is returned as typed. */

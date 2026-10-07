@@ -6,7 +6,8 @@ import { newId } from '../core/ids';
 import { collectTags } from '../core/songFilter';
 import { normalizeTags } from '../core/tags';
 import { elementAtReadingLine } from '../lib/readingLine';
-import { isStandardStrings, nameForStrings, standardStrings, stringsKey, tuningStrings } from '../core/tuning';
+import { standardStrings } from '../core/tuning';
+import { stringsOf, tuningIdFor } from '../data/tunings';
 import type { Instrument, Part, Performer, Song, Tuning } from '../core/types';
 import { PartsEditor, TEXT_PART, type PdfInfo, type PendingPdf } from '../components/PartsEditor';
 import { PerformerBadge } from '../components/PerformerBadge';
@@ -179,7 +180,7 @@ function SongForm({
   const [capo, setCapo] = useState(initial?.capo ?? 0);
   // The tuning is picked string by string. Until it is touched the song keeps its stored tuning (even one that is free text).
   const initialTuning = tunings.find((x) => x.id === initial?.tuningId);
-  const [strings, setStrings] = useState<string[]>(() => (initialTuning && !initialTuning.isStandard ? tuningStrings(initialTuning.notes) : null) ?? standardStrings());
+  const [strings, setStrings] = useState<string[]>(() => (initialTuning ? stringsOf(initialTuning) : null) ?? standardStrings());
   const [tuningTouched, setTuningTouched] = useState(false);
   const tuningId = initial?.tuningId ?? standardId;
   const [tempo, setTempo] = useState(initial?.tempo ? String(initial.tempo) : '');
@@ -240,15 +241,6 @@ function SongForm({
     setNewPdfs((list) => [...list, ...Array.from(files).map((file) => ({ key: newId(), file, instrumentId }))]);
   }
 
-  /** The stored tuning that matches the strings picked; a new one is created the first time a combination is used. */
-  async function tuningFor(picked: readonly string[]): Promise<string> {
-    if (isStandardStrings(picked)) return standardId;
-    const list = await store.tunings.listBy('bandId', band.id);
-    const same = list.find((x) => !x.isStandard && (tuningStrings(x.notes) ? stringsKey(tuningStrings(x.notes)!) === stringsKey(picked) : false));
-    if (same) return same.id;
-    return (await store.tunings.create({ bandId: band.id, isStandard: false, name: nameForStrings(picked), notes: picked.join(' ') })).id;
-  }
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const next: Errors = {};
@@ -286,7 +278,7 @@ function SongForm({
         capo,
         tempo: tempoValue,
         durationSec: parsedDuration.seconds,
-        tuningId: tuningTouched ? await tuningFor(strings) : tuningId,
+        tuningId: tuningTouched ? await tuningIdFor(store, band.id, strings) : tuningId,
         defaultPerformerIds: performerIds,
         instrumentIds,
         chordpro,

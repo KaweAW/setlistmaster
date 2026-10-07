@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useCanEdit, useCloud } from '../cloud/CloudProvider';
 import { groupBands } from '../core/bandTabs';
-import type { Band, Setlist } from '../core/types';
-import { copySetlistToBand } from '../data/copySetlist';
+import type { Band, Setlist, Song } from '../core/types';
+import { copySetlistToBand, copySongsToBand } from '../data/copySetlist';
 import { useData } from '../data/DataProvider';
 import { useQuery } from '../hooks/useQuery';
 import { useT } from '../i18n';
@@ -21,8 +21,51 @@ function Target({ band, label, onPick, busy }: { band: Band; label: string; onPi
   );
 }
 
-/** Choose where to copy a setlist: the personal space or any band the person can edit (other than this one). */
 export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onClose: () => void }) {
+  const { store } = useData();
+  const t = useT();
+  return (
+    <CopyToBandDialog
+      title={t('copy.title', { title: setlist.title })}
+      hint={t('copy.hint')}
+      onCopy={async (target, name) => {
+        await copySetlistToBand(store, setlist.id, target.id);
+        return t('copy.done', { band: name });
+      }}
+      onClose={onClose}
+    />
+  );
+}
+
+/** The same for one song of the library (the band keeps its own copy: edits there do not touch the other band's song). */
+export function CopySongDialog({ song, onClose }: { song: Song; onClose: () => void }) {
+  const { store } = useData();
+  const t = useT();
+  return (
+    <CopyToBandDialog
+      title={t('copy.title', { title: song.title })}
+      hint={t('copy.songHint')}
+      onCopy={async (target, name) => {
+        const { copied } = await copySongsToBand(store, [song.id], target.id);
+        return copied > 0 ? t('copy.done', { band: name }) : t('copy.songExists', { band: name });
+      }}
+      onClose={onClose}
+    />
+  );
+}
+
+/** Choose where to copy to: the personal space or any band the person can edit (other than this one). */
+function CopyToBandDialog({
+  title,
+  hint,
+  onCopy,
+  onClose,
+}: {
+  title: string;
+  hint: string;
+  onCopy: (target: Band, name: string) => Promise<string>;
+  onClose: () => void;
+}) {
   const t = useT();
   const { store, band } = useData();
   const cloud = useCloud();
@@ -30,7 +73,7 @@ export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onCl
   const bands = useQuery(() => store.bands.listAll(), [store, cloud.linked]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const [done, setDone] = useState<{ band: Band; name: string } | null>(null);
+  const [done, setDone] = useState<{ band: Band; name: string; message: string } | null>(null);
 
   const { personal } = groupBands(bands.data ?? [], cloud.linked);
   const nameOf = (b: Band) => (personal?.id === b.id ? t('tabs.personal') : b.name);
@@ -40,8 +83,8 @@ export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onCl
     setBusy(true);
     setError(false);
     try {
-      await copySetlistToBand(store, setlist.id, target.id);
-      setDone({ band: target, name: nameOf(target) });
+      const message = await onCopy(target, nameOf(target));
+      setDone({ band: target, name: nameOf(target), message });
     } catch {
       setError(true);
     } finally {
@@ -50,10 +93,10 @@ export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onCl
   }
 
   return (
-    <Modal title={t('copy.title', { title: setlist.title })} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       {done ? (
         <div className="flex flex-col gap-3">
-          <p role="status">{t('copy.done', { band: done.name })}</p>
+          <p role="status">{done.message}</p>
           <div className="flex gap-2">
             <Button onClick={() => { rememberSlide('right'); setActive(done.band.id); onClose(); }}>{t('copy.open', { band: done.name })}</Button>
             <Button variant="secondary" onClick={onClose}>{t('copy.close')}</Button>
@@ -61,7 +104,7 @@ export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onCl
         </div>
       ) : (
         <>
-          <p className="mb-3 text-sm text-soft">{t('copy.hint')}</p>
+          <p className="mb-3 text-sm text-soft">{hint}</p>
           {targets.length === 0 && bands.data && <p>{t('copy.none')}</p>}
           <ul className="flex flex-col gap-2">
             {targets.map((b) => <Target key={b.id} band={b} label={nameOf(b)} busy={busy} onPick={() => void pick(b)} />)}

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { choose } from '../../components/__tests__/choose';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -125,6 +126,27 @@ describe('setlist page', () => {
     await waitFor(async () => {
       const tree = (await loadTree(store, setlist.id))!;
       expect(tree.items.some((i) => i.transitionText === 'New **cue**')).toBe(false);
+    });
+  });
+
+  it('sets the tuning of a song for this setlist with the same string picker, and drops it when it matches the song again', async () => {
+    const { store, setlist } = await setup('/setlist/:id');
+    await screen.findByRole('heading', { name: 'Scaletta live' });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get Back/ }));
+    await choose('String 6', 'D');
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Done' }));
+    const song = (await store.songs.listBy('bandId', setlist.bandId)).find((x) => x.title === 'Get Back')!;
+    await waitFor(async () => {
+      const item = (await loadTree(store, setlist.id))!.items.find((i) => i.songId === song.id)!;
+      expect((await store.tunings.get(item.tuningOverrideId!))?.notes).toBe('D A D G B E');
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Get Back/ }));
+    await choose('String 6', 'E');
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Done' }));
+    await waitFor(async () => {
+      const item = (await loadTree(store, setlist.id))!.items.find((i) => i.songId === song.id)!;
+      expect(item.tuningOverrideId).toBeUndefined();
     });
   });
 

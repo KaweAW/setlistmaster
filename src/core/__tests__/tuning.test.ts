@@ -42,3 +42,17 @@ describe('tuning strings', () => {
     expect(nameForStrings(['D', 'B', 'D', 'G', 'B', 'E'])).toBe('D B D G B E');
   });
 });
+
+describe('tunings written without separators', () => {
+  it.each([
+    ['EADGBE', ['E', 'A', 'D', 'G', 'B', 'E']],
+    ['DBDGBE', ['D', 'B', 'D', 'G', 'B', 'E']],
+    ['DbAbDbGbBbEb', ['D♭', 'A♭', 'D♭', 'G♭', 'B♭', 'E♭']],
+    ['D-G-C-F-A-D', ['D', 'G', 'C', 'F', 'A', 'D']],
+  ])('%s', (text, notes) => {
+    expect(parseTuningNotes(text)).toEqual(notes);
+  });
+  it('still rejects free text', () => {
+    expect(parseTuningNotes('Open G slide')).toBeNull();
+  });
+});

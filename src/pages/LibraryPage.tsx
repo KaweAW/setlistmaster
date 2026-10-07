@@ -5,6 +5,7 @@ import { Highlight } from '../components/Highlight';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { RemoteFlash } from '../components/RemoteFlash';
 import { Select } from '../components/Select';
+import { CopySongDialog } from '../components/CopySetlistDialog';
 import { TuningChip } from '../components/TuningChip';
 import { buttonClass, PageTitle } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
@@ -76,6 +77,7 @@ export default function LibraryPage() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [sort, setSort] = useState<SongSort>('title');
   const [menu, setMenu] = useState<Song | null>(null);
+  const [copying, setCopying] = useState<Song | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const press = useRef({ timer: 0, fired: false });
 
@@ -258,11 +260,11 @@ export default function LibraryPage() {
                 song.tempo && `${song.tempo} BPM`,
               ].filter(Boolean);
               return (
-                <li key={song.id} data-reveal className="relative">
+                <li key={song.id} data-reveal className="relative flex items-center">
                   <RemoteFlash id={song.id} />
                   <Link
                     to={`/song/${song.id}`}
-                    className="song-row flex min-h-[64px] items-center gap-3 px-1 py-2.5"
+                    className="song-row flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-1 py-2.5"
                     onPointerDown={startPress(song)}
                     onPointerUp={endPress}
                     onPointerLeave={endPress}
@@ -300,6 +302,14 @@ export default function LibraryPage() {
                       </span>
                     </div>
                   </Link>
+                  <button
+                    type="button"
+                    aria-label={`${t('action.more')}: ${song.title}`}
+                    onClick={() => setMenu(song)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg text-soft transition-colors hover:bg-line/50 active:bg-line"
+                  >
+                    ⋯
+                  </button>
                 </li>
               );
             })}
@@ -320,11 +330,13 @@ export default function LibraryPage() {
             <p className="truncate px-4 pb-1 pt-3 font-display text-lg font-bold uppercase tracking-wide">{menu.title}</p>
             <Link role="menuitem" to={`/song/${menu.id}`} className="flex min-h-[48px] items-center rounded-lg px-4 font-semibold hover:bg-line/40">{t('menu.open')}</Link>
             {canEdit && <Link role="menuitem" to={`/library/${menu.id}`} className="flex min-h-[48px] items-center rounded-lg px-4 font-semibold hover:bg-line/40">{t('common.edit')}</Link>}
+            <button type="button" role="menuitem" onClick={() => { setCopying(menu); setMenu(null); }} className="flex min-h-[48px] w-full items-center rounded-lg px-4 text-left font-semibold hover:bg-line/40">{t('copy.action')}</button>
             {canEdit && <button type="button" role="menuitem" onClick={() => void remove(menu)} className="flex min-h-[48px] w-full items-center rounded-lg px-4 text-left font-semibold text-lei hover:bg-lei/10">{t('common.delete')}</button>}
           </div>
         </div>,
         document.body,
       )}
+      {copying && <CopySongDialog song={copying} onClose={() => setCopying(null)} />}
     </main>
   );
 }
