@@ -273,6 +273,9 @@ describe('band management', () => {
     fireEvent.click(go);
     await waitFor(() => expect(server.notices.filter((x) => x.userId === ALEX.id)).toHaveLength(1));
     expect(server.notices[0]!.bandName).toBe(band.name);
+    // let the rest of the deletion (the local copy, the redirect) finish before the test ends
+    await waitFor(async () => expect((await store.sync.linkedBands()).includes(band.id)).toBe(false));
+    await screen.findByText(/was deleted/);
   });
 
   it('shows a deleted-band notice to a member, who keeps a local copy', async () => {
