@@ -95,7 +95,7 @@ function Chip({ icon, children, onClick, pressed, label }: { icon: keyof typeof 
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})} {...(label ? { 'aria-label': label } : {})} className={`${chipBase} ${pressed ? 'border-ink bg-ink text-paper [&>span]:text-paper' : tone} transition-colors hover:border-io/60 active:scale-[0.97]`}>
+    <button type="button" onClick={onClick} {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})} {...(label ? { 'aria-label': label } : {})} data-keep-controls={pressed !== undefined ? '' : undefined} className={`${chipBase} ${pressed ? 'border-ink bg-ink text-paper [&>span]:text-paper' : tone} transition-colors hover:border-io/60 active:scale-[0.97]`}>
       {content}
     </button>
   ) : (
@@ -246,7 +246,7 @@ function SongView({
       chartSections(chart)
         .filter((x) => x.lines[0]?.kind === 'label')
         .map((x) => {
-          const fallback = { verse: 'chart.verse', chorus: 'chart.chorus', bridge: 'chart.bridge', tab: 'chart.tab' } as const;
+          const fallback = { intro: 'chart.intro', verse: 'chart.verse', prechorus: 'chart.prechorus', chorus: 'chart.chorus', bridge: 'chart.bridge', instrumental: 'chart.instrumental', outro: 'chart.outro', tab: 'chart.tab' } as const;
           const key = x.section.kind === 'none' ? undefined : fallback[x.section.kind];
           return { index: x.section.index, kind: x.section.kind, label: (x.section.text || (key ? t(key) : '')).replace(/:.*$/, '') };
         })
@@ -301,7 +301,7 @@ function SongView({
       >
         {(shownKey || capo > 0 || song.tempo || song.durationSec || (tuning && !tuning.isStandard) || performerIds.length > 0) && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {shownKey && <Chip icon="key" onClick={hasChart && mode === 'chords' ? () => setControlsOpen(true) : undefined}>{`${t('chart.key')} ${shownKey}`}</Chip>}
+            {shownKey && <Chip icon="key" pressed={hasChart && mode === 'chords' ? controlsOpen : undefined} onClick={hasChart && mode === 'chords' ? () => setControlsOpen(!controlsOpen) : undefined}>{`${t('chart.key')} ${shownKey}`}</Chip>}
             {capo > 0 && <Chip icon="capo">{`${t('chart.capo')} ${capo}`}</Chip>}
             {song.tempo ? (
               <Chip icon="beat" pressed={metro} label={t('metro.title')} onClick={() => setMetro(!metro)}>{`♩ ${song.tempo}`}</Chip>

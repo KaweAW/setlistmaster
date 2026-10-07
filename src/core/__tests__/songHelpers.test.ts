@@ -64,3 +64,21 @@ describe('editor insertions', () => {
     expect(chartStats('')).toEqual({ lines: 0, chords: 0 });
   });
 });
+
+describe('structureSections', () => {
+  it('turns headings into blocks', async () => {
+    const { structureSections, parseChordPro } = await import('../chordpro');
+    const r = structureSections('[Intro]\n[Em]a\n\n[Verse 1: David]\n[G]b\n\nChorus:\nc\n\n**Pre-Chorus**\nd\n\n[Instrumental Break]\n[Am]e');
+    expect(r.count).toBe(5);
+    expect(r.text).toContain('{start_of_intro: Intro}\n[Em]a\n{end_of_intro}\n');
+    expect(r.text).toContain('{start_of_verse: Verse 1: David}');
+    expect(r.text).toContain('{start_of_prechorus: Pre-Chorus}');
+    expect(r.text).toContain('{start_of_instrumental: Instrumental Break}');
+    const kinds = parseChordPro(r.text).lines.filter((l) => l.kind === 'label').map((l) => (l as { section: string }).section);
+    expect(kinds).toEqual(['intro', 'verse', 'chorus', 'prechorus', 'instrumental']);
+  });
+  it('leaves other text alone', async () => {
+    const { structureSections } = await import('../chordpro');
+    expect(structureSections('[Am]hello world\nI sing the chorus of a long song today').count).toBe(0);
+  });
+});

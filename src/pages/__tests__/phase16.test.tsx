@@ -6,6 +6,7 @@ import AppRoutes from '../../routes';
 import { bootstrap } from '../../data/bootstrap';
 import { createDexieStore } from '../../data/dexie/dexieRepository';
 import { DataProvider } from '../../data/DataProvider';
+import { choose } from '../../components/__tests__/choose';
 import { useUiStore } from '../../state/uiStore';
 
 vi.mock('../../components/PdfViewer', () => ({ default: () => null }));
@@ -135,7 +136,7 @@ describe('the song form', () => {
     const area = (await screen.findByLabelText(/Lyrics and chords/)) as HTMLTextAreaElement;
     fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'G' } });
     expect(screen.getByText('The sheet appears here as you write.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '+ Verse' }));
+    await choose('+ Add section', 'verse');
     expect(area.value).toBe('{start_of_verse: Verse}\n\n{end_of_verse}\n');
     const chords = screen.getByRole('group', { name: 'Chords of this key' });
     expect([...chords.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['G', 'Am', 'Bm', 'C', 'D', 'Em', 'D7']);
@@ -145,6 +146,19 @@ describe('the song form', () => {
     expect(screen.getByText(/1 lines · 1 chords|0 lines · 1 chords/)).toBeTruthy();
     expect(screen.queryByText('The sheet appears here as you write.')).toBeNull();
     expect(document.querySelector('.chart .chart-section')).toBeTruthy();
+  });
+
+  it('adds a pre-chorus from the menu and splits a pasted text into sections', async () => {
+    await setup(() => '/library/new');
+    const area = (await screen.findByLabelText(/Lyrics and chords/)) as HTMLTextAreaElement;
+    await choose('+ Add section', 'prechorus');
+    expect(area.value).toBe('{start_of_prechorus: Pre-Chorus}\n\n{end_of_prechorus}\n');
+    fireEvent.change(area, { target: { value: '[Intro]\n[Em]a\n\n[Pre-Chorus]\n[C]b\n\n[Instrumental Break]\n[G]c' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Detect sections' }));
+    expect(area.value).toContain('{start_of_instrumental: Instrumental Break}');
+    expect(screen.getByText('Split into 3 sections')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(area.value.startsWith('[Intro]')).toBe(true);
   });
 
   it('colours the marks behind the text', async () => {

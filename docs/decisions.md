@@ -412,3 +412,9 @@ and what still has to be tried by hand on real devices.
   with its text so the two always line up), buttons insert a section or a chord of the key (`diatonicChords`), a counter, and the
   sheet itself beside it (below a Write / Preview switch on a phone).
 - Not done: a thumbnail of a PDF's first page and an upload progress bar (the files never leave the device while choosing).
+
+## Phase 17 — Song editor fixes
+
+- Sections are added from one dropdown (Intro, Verse, Pre-Chorus, Chorus, Bridge, Instrumental Break, Outro, Tab). `sectionOf` tests pre-chorus before chorus, since "prechorus" contains "chorus".
+- `structureSections` turns heading lines (`[Verse 1]`, `Chorus:`, `**Bridge**`, `{comment: Solo}`, Italian names too) into `{start_of_x: Label}` blocks. It runs on a multi-line paste with at least two headings (with an Undo banner) and from a "Detect sections" button.
+- Mobile: the editor grid uses `minmax(0,1fr)` so long content cannot widen the page; the display-controls panel has a close button, toggles from the key chip, and closes on an outside tap or a manual scroll.
