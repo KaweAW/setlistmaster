@@ -80,6 +80,9 @@ export default function LibraryPage() {
   const [copying, setCopying] = useState<Song | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const press = useRef({ timer: 0, fired: false });
+  // The finger that opened the menu is still down: its release must not tap (or dismiss) what the menu put under it.
+  const menuOpenedAt = useRef(0);
+  const tooSoon = () => Date.now() - menuOpenedAt.current < 450;
 
   const { data, loading, reload } = useQuery(async () => {
     const [songs, performers, tunings] = await Promise.all([
@@ -121,6 +124,7 @@ export default function LibraryPage() {
     press.current.timer = +setTimeout(() => {
       press.current.fired = true;
       navigator.vibrate?.(12);
+      menuOpenedAt.current = Date.now();
       setMenu(song);
     }, 480);
   };
@@ -264,12 +268,13 @@ export default function LibraryPage() {
                   <RemoteFlash id={song.id} />
                   <Link
                     to={`/song/${song.id}`}
-                    className="song-row flex min-h-[64px] min-w-0 flex-1 items-center gap-3 px-1 py-2.5"
+                    className="song-row flex min-h-[64px] min-w-0 flex-1 select-none items-center gap-3 px-1 py-2.5 [-webkit-touch-callout:none]"
+                    draggable={false}
                     onPointerDown={startPress(song)}
                     onPointerUp={endPress}
                     onPointerLeave={endPress}
                     onPointerCancel={endPress}
-                    onContextMenu={(e) => { e.preventDefault(); setMenu(song); }}
+                    onContextMenu={(e) => { e.preventDefault(); menuOpenedAt.current = Date.now(); setMenu(song); }}
                     onClick={(e) => {
                       if (press.current.fired) { press.current.fired = false; e.preventDefault(); return; }
                     }}
@@ -320,7 +325,7 @@ export default function LibraryPage() {
       {grouped && groups.length > 1 && <LetterRail letters={groups.map((g) => g.letter)} onJump={jump} />}
 
       {menu && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-chrome/50 motion-safe:animate-fade-in sm:items-center" onClick={() => setMenu(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-chrome/50 motion-safe:animate-fade-in sm:items-center" onClick={() => !tooSoon() && setMenu(null)} onClickCapture={(e) => { if (tooSoon()) { e.preventDefault(); e.stopPropagation(); } }}>
           <div
             role="menu"
             aria-label={menu.title}
