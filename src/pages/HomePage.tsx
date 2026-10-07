@@ -12,6 +12,7 @@ import { Button, buttonClass, PageTitle } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
 import { createSetlist, deleteSetlist, duplicateSetlist } from '../data/setlistService';
+import { CopySetlistDialog } from '../components/CopySetlistDialog';
 import { useMagnetic, useHomeMotion } from '../hooks/useHomeMotion';
 import { useQuery } from '../hooks/useQuery';
 import { resetSwipe, useSwipeDrag } from '../hooks/useSwipeDrag';
@@ -118,6 +119,7 @@ function SetlistList() {
   const canEdit = useCanEdit(band.id);
   const [showArchived, setShowArchived] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [copying, setCopying] = useState<Setlist | null>(null);
 
   const root = useRef<HTMLDivElement>(null);
   const [today] = useState(() => todayIso());
@@ -222,6 +224,7 @@ function SetlistList() {
         {menuOpen && (
           <div className="mb-2 flex flex-wrap gap-2 slide-open">
             <Button variant="secondary" onClick={() => void duplicate(s)}>{t('action.duplicate')}</Button>
+            <Button variant="secondary" onClick={() => { setCopying(s); setOpenMenu(null); }}>{t('copy.action')}</Button>
             <Button variant="secondary" onClick={() => void toggleArchive(s)}>
               {s.archived ? t('action.unarchive') : t('action.archive')}
             </Button>
@@ -255,6 +258,8 @@ function SetlistList() {
           {showArchived && <ul className="opacity-80">{archived.map(row)}</ul>}
         </div>
       )}
+
+      {copying && <CopySetlistDialog setlist={copying} onClose={() => setCopying(null)} />}
 
       <Link to="/library" className={`${buttonClass('secondary')} mt-8 w-full justify-between`}>
         <span>{t('home.library')}</span>

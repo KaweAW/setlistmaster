@@ -439,3 +439,9 @@ and what still has to be tried by hand on real devices.
 - **Tabs**: runs of three or more ASCII tab lines are drawn by `TabBlock` wherever they are (inside any section, or in a `{start_of_tab}`): one strip per staff, scrolling sideways instead of wrapping, fret numbers bold and coloured, dashes faded, bar lines and playing marks (h p b / ~) highlighted, an arrow when there is more to the right. The section menu offers "Tab (guitar)" and "Tab (bass)" with a blank staff of six or four strings. Lead and bass parts therefore read as tab rather than as lyrics.
 - The View Transition fly-in (library → song, home → setlist) is removed: the browser froze the screen until the new page had loaded. `lib/viewTransition` is gone.
 - **Band menu** (Home tabs): the opening animation capped the list at `max-height: 8rem`, so from the fourth band on it was cut off. The menu now grows from the tab, its rows come in one after the other, it scrolls past ~22rem and keeps "Manage bands" pinned at the bottom.
+
+## Phase 22 — Copy a setlist to another band
+
+- The setlist card menu has **Copy to…**: a dialog lists the personal space and every other band the person can edit (viewer bands are left out). `copySetlistToBand` writes a new setlist (same title, not archived) in the target with fresh ids and leaves the source untouched.
+- What the setlist refers to is **reused when the target has it, created when it does not**: songs by title + artist, performers and instruments by name, tunings by their notes (standard maps to the target's standard). A new song brings lyrics/chords, notes, tags and the parts of its instruments. **PDFs are not copied** (their bytes live per band); the dialog says so. Copying twice makes two setlists but no duplicate songs.
+- It works in both directions between personal and shared bands; shared targets sync through the normal outbox since every record is written through the repositories.
