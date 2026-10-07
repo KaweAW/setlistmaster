@@ -87,28 +87,45 @@ export function ChordChart({
     }
   };
 
-  // The section crossing the reading line (a bit above the middle of the screen) is the one in focus; the rest fade back.
+  // The section at the reading line (a bit above the middle of the screen) is the one in focus; the rest fade back.
+  // Near the end of the page the line slides down to the bottom edge, so the last sections, which can never reach the
+  // middle, are still highlighted in turn as the page runs out.
   const count = parts.length;
   useEffect(() => {
     const el = root.current;
-    if (!el || !focus || count < 2 || typeof IntersectionObserver === 'undefined') return;
+    if (!el || !focus || count < 2) return;
     const calm = calmDevice();
     if (!calm) el.setAttribute('data-focus', '');
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          const target = e.target as HTMLElement;
-          el.querySelectorAll('[data-current]').forEach((n) => n !== target && n.removeAttribute('data-current'));
-          target.setAttribute('data-current', '');
-          onCurrentSection?.(Number(target.dataset.section));
-        }
-      },
-      { rootMargin: '-30% 0px -55% 0px' },
-    );
-    el.querySelectorAll('[data-section]').forEach((n) => observer.observe(n));
+    let frame = 0;
+    let last = -1;
+    const update = () => {
+      frame = 0;
+      const nodes = [...el.querySelectorAll<HTMLElement>('[data-section]')];
+      if (nodes.length === 0 || el.getBoundingClientRect().height === 0) return;
+      const h = window.innerHeight;
+      const base = h * 0.35;
+      const remaining = document.documentElement.scrollHeight - h - window.scrollY;
+      const span = h - base;
+      const line = remaining >= span ? base : base + span * (1 - Math.max(0, remaining) / span);
+      let current = nodes[0]!;
+      for (const n of nodes) if (n.getBoundingClientRect().top <= line) current = n;
+      const index = Number(current.dataset.section);
+      if (index === last) return;
+      last = index;
+      el.querySelectorAll('[data-current]').forEach((n) => n !== current && n.removeAttribute('data-current'));
+      current.setAttribute('data-current', '');
+      onCurrentSection?.(index);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
     return () => {
-      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
       el.removeAttribute('data-focus');
     };
   }, [count, chart, onCurrentSection, focus]);
