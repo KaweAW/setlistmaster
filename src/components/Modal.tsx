@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Bottom sheet on phones, centred dialog from sm up. Closes on Escape or a tap on the backdrop. */
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -8,7 +9,9 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  // Rendered on <body>: inside a transformed ancestor (the swipeable home) `fixed` is relative to that ancestor, so the
+  // backdrop would cover only part of the screen and a tap outside it would not reach it.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-chrome/60 motion-safe:animate-fade-in sm:items-center" onClick={onClose}>
       <div
         role="dialog"
@@ -21,6 +24,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         <h2 className="mb-4 font-display text-2xl font-bold uppercase leading-none tracking-wide">{title}</h2>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
