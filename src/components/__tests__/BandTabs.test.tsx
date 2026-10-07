@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AppRoutes from '../../routes';
 import { bootstrap } from '../../data/bootstrap';
@@ -9,6 +9,10 @@ import { DataProvider } from '../../data/DataProvider';
 import { useUiStore } from '../../state/uiStore';
 import { CloudProvider } from '../../cloud/CloudProvider';
 import { FakeCloudServer } from '../../cloud/__tests__/fakeCloud';
+
+// Switching band reopens the store and reloads the page: on a slow CI machine that takes longer than the 1 s default.
+configure({ asyncUtilTimeout: 10_000 });
+vi.setConfig({ testTimeout: 30_000 });
 
 vi.mock('../PdfViewer', () => ({ default: () => null }));
 
@@ -106,7 +110,7 @@ describe('bands of my account', () => {
         <DataProvider store={store}><CloudProvider api={me}><AppRoutes /></CloudProvider></DataProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ })).toBeTruthy(), { timeout: 5000 });
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ })).toBeTruthy());
     expect((await store.bands.listAll()).map((b) => b.name).sort()).toEqual(['Mine', 'Personal', 'Wolves']);
     expect(await store.sync.linkedBands()).toContain('cloud-1');
   });
