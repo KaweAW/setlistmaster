@@ -345,3 +345,16 @@ and what still has to be tried by hand on real devices.
   with the block). It is meant for encores and spare songs: dashed, muted card in the editor, a "Reserve" tag on the printed
   sheet, and its songs are left out of the song count and total duration.
 - Bookmarks for rehearsal stay the sticky notes (phase 10).
+
+## Phase 13 — Personal and band tabs on the home
+
+- **Two kinds of band, shown as two tabs** on top of the setlists: "Personal" (the device's own band while it is only on this
+  device) and the shared band (created here and shared, or joined with an invitation). Data is still per band: sharing a band
+  shares all of its songs and setlists. A single setlist cannot be private inside a shared band.
+- If the own band is shared, it moves to the shared tab and the personal tab goes away. With several shared bands the Band
+  tab shows the active one with a ▾ and opens a small menu (slides open) to choose another.
+- **Swipe** on the home (finger moves left): Personal → Band; once on Band, one more swipe opens the band menu; swiping right
+  closes the menu or goes back to Personal. Tabs are hidden on a copy of the app without cloud settings and no shared band.
+- Colours: teal (`io`) for Personal, violet (`coro`) for Band, on the site's neutral surfaces; icons (lock / people) carry the
+  meaning too, not colour alone.
+- Pure rule in `core/bandTabs.ts` (`groupBands`).
