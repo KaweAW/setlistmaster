@@ -82,3 +82,19 @@ describe('structureSections', () => {
     expect(structureSections('[Am]hello world\nI sing the chorus of a long song today').count).toBe(0);
   });
 });
+
+describe('guessSections', () => {
+  it('labels repeated stanzas as chorus and the others as verses', async () => {
+    const { guessSections, parseChordPro } = await import('../chordpro');
+    const text = 'Karma police\nArrest this man\nHe talks in maths\n\nKarma police\nArrest this girl\nHer Hitler hairdo\n\nThis is what you get\nWhen you mess with us\n\nKarma police\nI have given all I can\nIt is not enough\n\nThis is what you get\nWhen you mess with us';
+    const r = guessSections(text);
+    expect(r.count).toBe(5);
+    const labels = parseChordPro(r.text).lines.filter((l) => l.kind === 'label').map((l) => (l as { text: string }).text);
+    expect(labels).toEqual(['Verse 1', 'Verse 2', 'Chorus', 'Verse 3', 'Chorus']);
+  });
+  it('does nothing on a single stanza or text that already has blocks', async () => {
+    const { guessSections } = await import('../chordpro');
+    expect(guessSections('one\ntwo').count).toBe(0);
+    expect(guessSections('{start_of_verse: V}\na\n{end_of_verse}\n\nb').count).toBe(0);
+  });
+});

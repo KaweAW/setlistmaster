@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { accidentalsForKey, diatonicChords } from '../core/chords';
-import { chartStats, insertChord, insertSection, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
+import { chartStats, insertChord, insertSection, guessSections, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
 import { useT, type MessageKey } from '../i18n';
 import { ChordChart } from './ChordChart';
 import { Segmented } from './Segmented';
@@ -49,7 +49,7 @@ export function ChordProEditor({
   const own = useRef<HTMLTextAreaElement>(null);
   const area = areaRef ?? own;
   const [view, setView] = useState<'write' | 'preview'>('write');
-  const [split, setSplit] = useState<{ before: string; count: number } | null>(null);
+  const [split, setSplit] = useState<{ before: string; count: number; guessed?: boolean } | null>(null);
   const chart = useMemo(() => parseChordPro(value), [value]);
   const stats = chartStats(value);
   const chords = diatonicChords(songKey);
@@ -70,9 +70,11 @@ export function ChordProEditor({
     });
   }
   function detect(text: string) {
-    const r = structureSections(text);
+    let r = structureSections(text);
+    const guessed = r.count === 0;
+    if (guessed) r = guessSections(text);
     if (r.count === 0) return false;
-    setSplit({ before: text, count: r.count });
+    setSplit({ before: text, count: r.count, guessed });
     onChange(r.text);
     return true;
   }
@@ -107,9 +109,10 @@ export function ChordProEditor({
               }}
               className="shrink-0"
             />
-            <button type="button" className={chip} onClick={() => { if (!detect(value)) setSplit({ before: value, count: 0 }); }}>
+            <button type="button" className={chip} title={t('editor.detectHint')} aria-describedby={`${id}-hint`} onClick={() => { if (!detect(value)) setSplit({ before: value, count: 0 }); }}>
               {t('editor.detect')}
             </button>
+            <span id={`${id}-hint`} className="sr-only">{t('editor.detectHint')}</span>
             {extra}
           </div>
           {chords.length > 0 && (
@@ -129,7 +132,7 @@ export function ChordProEditor({
           )}
           {split && (
             <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-md bg-io/10 px-3 py-2 text-sm text-ink">
-              <span>{split.count > 0 ? t('editor.detected', { n: split.count }) : t('editor.detectNone')}</span>
+              <span>{split.count === 0 ? t('editor.detectNone') : split.guessed ? t('editor.detectedGuess', { n: split.count }) : t('editor.detected', { n: split.count })}</span>
               <span className="flex gap-2">
                 {split.count > 0 && (
                   <button type="button" className="font-semibold text-io underline" onClick={() => { onChange(split.before); setSplit(null); }}>{t('editor.undo')}</button>
