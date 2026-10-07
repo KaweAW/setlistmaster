@@ -428,3 +428,7 @@ and what still has to be tried by hand on real devices.
 ## Phase 19 — Sections guessed without titles
 
 - "Detect sections" first looks for headings (`structureSections`). With none, `guessSections` splits the text on blank lines: stanzas that come back (70% of their lines shared) are the chorus, the others verses; a short first stanza is the intro, a short last one the outro, a short one in between a bridge. The result is announced as a guess, can be undone, and the button's tooltip (and the banner) advise pasting the lyrics with titles.
+
+## Phase 20 — One paste, chords and sections
+
+- "Detect sections" and a multi-line paste now do both jobs: text with chords written above the words (`looksLikeChordsOverWords`: bare chord lines and no `[chord]` yet) is first turned into ChordPro, then split into sections by its titles (or guessed). Existing `{…}` lines pass through the converter untouched, so a song that was split earlier but never got its chords placed can be fixed by pressing the button. "Verso/Versi" are recognised as verse titles. The Convert dialog also splits sections now.

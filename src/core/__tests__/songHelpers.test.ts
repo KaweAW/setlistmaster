@@ -98,3 +98,19 @@ describe('guessSections', () => {
     expect(guessSections('{start_of_verse: V}\na\n{end_of_verse}\n\nb').count).toBe(0);
   });
 });
+
+describe('chords over words with sections', () => {
+  it('places chords, understands Italian headings and leaves existing blocks alone', async () => {
+    const { chordsOverWordsToChordPro, looksLikeChordsOverWords } = await import('../chordsOverWords');
+    const { structureSections } = await import('../chordpro');
+    const text = 'Verso 1\nAm      F\nKarma police\nEm\nArrest this man\n\nChorus\nAm\nla la';
+    expect(looksLikeChordsOverWords(text)).toBe(true);
+    expect(looksLikeChordsOverWords('[Am]already chordpro\n[G]x')).toBe(false);
+    const r = structureSections(chordsOverWordsToChordPro(text));
+    expect(r.count).toBe(2);
+    expect(r.text).toContain('{start_of_verse: Verso 1}');
+    expect(r.text).toContain('[Am]Karma ');
+    const kept = chordsOverWordsToChordPro('{start_of_verse: Verse 1}\nEm   G\nhello there\n{end_of_verse}');
+    expect(kept).toBe('{start_of_verse: Verse 1}\n[Em]hello[G] there\n{end_of_verse}');
+  });
+});

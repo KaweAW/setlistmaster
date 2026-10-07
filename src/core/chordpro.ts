@@ -68,7 +68,7 @@ export function sectionKindOfLabel(label: string): InsertableKind | null {
   if (!n) return null;
   if (/^(pre ?chorus|prechorus|pre ?ritornello|pre ?inciso)\b/.test(n)) return 'prechorus';
   if (/^(post ?chorus|chorus|ritornello|refrain|hook|inciso)\b/.test(n)) return 'chorus';
-  if (/^(verse|strofa)\b/.test(n)) return 'verse';
+  if (/^(verse|strofa|verso|versi)\b/.test(n)) return 'verse';
   if (/^(bridge|ponte)\b/.test(n)) return 'bridge';
   if (/^(intro|introduzione)\b/.test(n)) return 'intro';
   if (/^(outro|finale|coda|ending|tag)\b/.test(n)) return 'outro';
@@ -211,7 +211,7 @@ export function insertSection(source: string, cursor: number, kind: InsertableKi
   return { text, cursor: lineStart + open.length };
 }
 
-const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
+const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|verso|versi|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
 
 /** The text of a heading line ("[Verse 1]", "Chorus:", "**Bridge**", "## Outro", "{comment: Solo}") or null when the line is something else. */
 function headingOf(line: string): string | null {

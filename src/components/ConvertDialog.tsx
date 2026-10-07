@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { chordsOverWordsToChordPro } from '../core/chordsOverWords';
+import { structureSections } from '../core/chordpro';
 import { useT } from '../i18n';
 import { Modal } from './Modal';
 import { Button, Field, textareaClass } from './ui';
@@ -16,7 +17,7 @@ export function ConvertDialog({
 }) {
   const t = useT();
   const [pasted, setPasted] = useState('');
-  const result = useMemo(() => chordsOverWordsToChordPro(pasted), [pasted]);
+  const result = useMemo(() => structureSections(chordsOverWordsToChordPro(pasted)).text, [pasted]);
   const empty = result.trim() === '';
 
   return (

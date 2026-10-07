@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { accidentalsForKey, diatonicChords } from '../core/chords';
+import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from '../core/chordsOverWords';
 import { chartStats, insertChord, insertSection, guessSections, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
 import { useT, type MessageKey } from '../i18n';
 import { ChordChart } from './ChordChart';
@@ -49,7 +50,7 @@ export function ChordProEditor({
   const own = useRef<HTMLTextAreaElement>(null);
   const area = areaRef ?? own;
   const [view, setView] = useState<'write' | 'preview'>('write');
-  const [split, setSplit] = useState<{ before: string; count: number; guessed?: boolean } | null>(null);
+  const [split, setSplit] = useState<{ before: string; count: number; guessed?: boolean; chords?: boolean } | null>(null);
   const chart = useMemo(() => parseChordPro(value), [value]);
   const stats = chartStats(value);
   const chords = diatonicChords(songKey);
@@ -69,13 +70,17 @@ export function ChordProEditor({
       area.current?.setSelectionRange(r.cursor, r.cursor);
     });
   }
+  /** Puts chords written above the words into the text, splits it into sections (by its titles, or by a guess) and applies it. */
   function detect(text: string) {
-    let r = structureSections(text);
+    const chords = looksLikeChordsOverWords(text);
+    const base = chords ? chordsOverWordsToChordPro(text) : text;
+    let r = structureSections(base);
     const guessed = r.count === 0;
-    if (guessed) r = guessSections(text);
-    if (r.count === 0) return false;
-    setSplit({ before: text, count: r.count, guessed });
-    onChange(r.text);
+    if (guessed) r = guessSections(base);
+    if (r.count === 0 && !chords) return false;
+    const next = r.count === 0 ? base : r.text;
+    setSplit({ before: text, count: r.count, guessed: guessed && r.count > 0, chords });
+    onChange(next);
     return true;
   }
   const at = () => area.current?.selectionStart ?? value.length;
@@ -132,7 +137,10 @@ export function ChordProEditor({
           )}
           {split && (
             <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-md bg-io/10 px-3 py-2 text-sm text-ink">
-              <span>{split.count === 0 ? t('editor.detectNone') : split.guessed ? t('editor.detectedGuess', { n: split.count }) : t('editor.detected', { n: split.count })}</span>
+              <span>
+                {split.chords && `${t('editor.chordsPlaced')}${split.count > 0 ? ' · ' : ''}`}
+                {split.count === 0 ? (split.chords ? '' : t('editor.detectNone')) : split.guessed ? t('editor.detectedGuess', { n: split.count }) : t('editor.detected', { n: split.count })}
+              </span>
               <span className="flex gap-2">
                 {split.count > 0 && (
                   <button type="button" className="font-semibold text-io underline" onClick={() => { onChange(split.before); setSplit(null); }}>{t('editor.undo')}</button>
@@ -152,7 +160,9 @@ export function ChordProEditor({
               onChange={(e) => { setSplit(null); onChange(e.target.value); }}
               onPaste={(e) => {
                 const pasted = e.clipboardData.getData('text');
-                if (pasted.split('\n').length < 4 || structureSections(pasted).count < 2) return;
+                if (pasted.split('\n').length < 4) return;
+                const chordy = looksLikeChordsOverWords(pasted);
+                if (!chordy && structureSections(pasted).count < 2) return;
                 e.preventDefault();
                 const el = e.currentTarget;
                 const a = el.selectionStart, b = el.selectionEnd;

@@ -188,6 +188,7 @@ export const en = {
   'editor.detectNone': 'No section titles found',
   'editor.detectHint': "Works best with titles such as [Verse] or [Chorus] in the pasted text; without them the sections are only a guess.",
   'editor.detectedGuess': "Guessed {n} sections — paste the lyrics with titles ([Verse], [Chorus]…) for an exact split",
+  'editor.chordsPlaced': 'Chords placed over the words',
   'editor.undo': 'Undo',
   'controls.dismiss': 'Dismiss',
   'controls.close': 'Close display controls',

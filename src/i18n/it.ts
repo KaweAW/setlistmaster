@@ -190,6 +190,7 @@ export const it: Record<MessageKey, string> = {
   'editor.detectNone': 'Nessun titolo di sezione trovato',
   'editor.detectHint': "Funziona meglio con titoli come [Verse] o [Chorus] nel testo incollato; senza, le sezioni sono solo una stima.",
   'editor.detectedGuess': "Stimate {n} sezioni — incolla il testo con i titoli ([Verse], [Chorus]…) per una divisione esatta",
+  'editor.chordsPlaced': 'Accordi posizionati sulle parole',
   'editor.undo': 'Annulla',
   'controls.dismiss': 'Chiudi',
   'controls.close': 'Chiudi controlli di visualizzazione',
