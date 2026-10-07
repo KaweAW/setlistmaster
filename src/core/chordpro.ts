@@ -145,3 +145,58 @@ export function chartChords(chart: ParsedChart): string[] {
     line.kind === 'lyrics' ? line.segments.flatMap((s) => (s.chord ? [s.chord] : [])) : [],
   );
 }
+
+export interface ChartSection {
+  /** Index of the section in the chart (0-based): the same one ChordChart puts in `data-section`. */
+  index: number;
+  kind: SectionKind;
+  /** The label written in the text, or '' when the section has none. */
+  text: string;
+}
+
+/**
+ * Splits a chart into its sections: each starts at a label line ({start_of_verse: Verse 1}); anything before the first
+ * label is a section with no label. The label line itself is the first line of its section.
+ */
+export function chartSections(chart: ParsedChart): { section: ChartSection; lines: ChartLine[] }[] {
+  const out: { section: ChartSection; lines: ChartLine[] }[] = [];
+  for (const line of chart.lines) {
+    if (line.kind === 'label' || out.length === 0) {
+      out.push({
+        section: { index: out.length, kind: line.kind === 'label' ? line.section : 'none', text: line.kind === 'label' ? line.text : '' },
+        lines: [line],
+      });
+    } else {
+      out[out.length - 1]!.lines.push(line);
+    }
+  }
+  return out.filter((x) => x.lines.some((l) => l.kind !== 'blank'));
+}
+
+const kindOfTag = { verse: 'verse', chorus: 'chorus', bridge: 'bridge', tab: 'tab' } as const;
+
+/** Inserts an empty section ({start_of_verse: Verse} … {end_of_verse}) on its own lines at the cursor; the cursor lands inside it. */
+export function insertSection(source: string, cursor: number, kind: keyof typeof kindOfTag, label: string): { text: string; cursor: number } {
+  const at = Math.max(0, Math.min(cursor, source.length));
+  const lineStart = source.lastIndexOf('\n', at - 1) + 1;
+  const open = `{start_of_${kindOfTag[kind]}${label ? `: ${label}` : ''}}\n`;
+  const close = `{end_of_${kindOfTag[kind]}}\n`;
+  const needsBreak = lineStart < source.length && source.slice(lineStart).trim() !== '' ? '\n' : '';
+  const text = `${source.slice(0, lineStart)}${open}\n${close}${needsBreak}${source.slice(lineStart)}`;
+  return { text, cursor: lineStart + open.length };
+}
+
+/** Puts `[chord]` at the cursor, replacing a selection. */
+export function insertChord(source: string, start: number, end: number, chord: string): { text: string; cursor: number } {
+  const a = Math.max(0, Math.min(start, source.length));
+  const b = Math.max(a, Math.min(end, source.length));
+  const piece = `[${chord}]`;
+  return { text: source.slice(0, a) + piece + source.slice(b), cursor: a + piece.length };
+}
+
+/** Lines of text and chords written, for the little counter under the editor. */
+export function chartStats(source: string): { lines: number; chords: number } {
+  const lines = source.split(/\r?\n/).filter((l) => l.trim() !== '' && !/^\s*\{.*\}\s*$/.test(l)).length;
+  const chords = (source.match(/\[[^\]\n]+\]/g) ?? []).length;
+  return { lines, chords };
+}

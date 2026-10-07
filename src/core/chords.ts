@@ -83,3 +83,30 @@ export function inferKey(chords: readonly string[]): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * The chords that belong to a key, to offer as one-tap insertions: the six usual triads (I ii iii IV V vi in major;
+ * i III iv v VI VII in minor, spelled from the relative major) plus the dominant 7th. Empty when the key is not readable.
+ */
+export function diatonicChords(key: string | undefined): string[] {
+  const parsed = key ? parseChord(key.trim()) : null;
+  if (!parsed) return [];
+  const minor = isMinorSuffix(parsed.suffix);
+  const acc = accidentalsForKey(key, 0);
+  const tonic = pitchClassOf(parsed.root);
+  const at = (semis: number, quality = '') => `${NAMES[acc === 'neutral' ? 'neutral' : acc][mod12(tonic + semis)]!}${quality}`;
+  return minor
+    ? [at(0, 'm'), at(3), at(5, 'm'), at(7, 'm'), at(8), at(10), at(7, '7')]
+    : [at(0), at(2, 'm'), at(4, 'm'), at(5), at(7), at(9, 'm'), at(7, '7')];
+}
+
+/** The twelve tonics as written on the key picker, and whether a key text is minor. */
+export const TONICS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
+export function splitKey(key: string): { tonic: string; minor: boolean } | null {
+  const p = parseChord(key.trim());
+  if (!p) return null;
+  const spelled = p.root.replace('♯', '#').replace('♭', 'b');
+  const pc = PITCH_CLASS[spelled];
+  if (pc === undefined) return null;
+  return { tonic: TONICS[pc]!, minor: isMinorSuffix(p.suffix) };
+}

@@ -1,9 +1,9 @@
 import { Select } from '../components/Select';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { SwipeDirection } from '../core/autoscroll';
 import { accidentalsForKey, inferKey, transposeKey } from '../core/chords';
-import { chartChords, parseChordPro } from '../core/chordpro';
+import { chartChords, chartSections, parseChordPro } from '../core/chordpro';
 import { effectivePerformerIds, effectiveTuningId } from '../core/legend';
 import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps';
 import type { Attachment, Instrument, Part, Performer, SetlistItem, Song, Tuning } from '../core/types';
@@ -11,6 +11,7 @@ import { formatDuration } from '../core/format';
 import { ChordChart } from '../components/ChordChart';
 import { MetronomePanel } from '../components/MetronomePanel';
 import { PerformerBadge } from '../components/PerformerBadge';
+import { Segmented } from '../components/Segmented';
 import { StageToggle } from '../components/StageToggle';
 import { SongToolbar } from '../components/SongToolbar';
 import { TuningChip } from '../components/TuningChip';
@@ -21,10 +22,12 @@ import { songAttachments } from '../data/attachments';
 import { useData } from '../data/DataProvider';
 import { loadTree } from '../data/setlistService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useScrollProgress } from '../hooks/useScrollProgress';
 import { useQuery } from '../hooks/useQuery';
 import { useSwipe } from '../hooks/useSwipe';
 import { useWakeLock, type WakeLockStatus } from '../hooks/useWakeLock';
 import { useT } from '../i18n';
+import { clearSongSlide, peekSongSlide, rememberSongSlide } from '../state/songSlide';
 import { useUiStore } from '../state/uiStore';
 
 // pdf.js is heavy: it is only fetched when a song actually shows its PDF.
@@ -67,6 +70,61 @@ function SongPageInner({ songId, setlistId, itemId }: { songId?: string; setlist
     );
   }
   return <SongView {...data} song={data.song} setlistId={setlistId} />;
+}
+
+const chipBase = 'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold';
+const Icon = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={d} />
+  </svg>
+);
+const ICONS = {
+  key: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  capo: 'M4 9h16M4 15h16M9 4v16',
+  beat: 'M3 12h4l2-6 4 12 2-6h6',
+  time: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+};
+
+/** A fact about the song as a pill; it is a button when it leads somewhere (the key opens the transposer, the tempo the metronome). */
+function Chip({ icon, children, onClick, pressed, label }: { icon: keyof typeof ICONS; children: string; onClick?: (() => void) | undefined; pressed?: boolean; label?: string }) {
+  const tone = 'border-line bg-surface text-ink';
+  const content = (
+    <>
+      <span className="text-io"><Icon d={ICONS[icon]} /></span>
+      {children}
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})} {...(label ? { 'aria-label': label } : {})} className={`${chipBase} ${pressed ? 'border-ink bg-ink text-paper [&>span]:text-paper' : tone} transition-colors hover:border-io/60 active:scale-[0.97]`}>
+      {content}
+    </button>
+  ) : (
+    <span className={`${chipBase} ${tone}`}>{content}</span>
+  );
+}
+
+/** Jump chips for the sections of a long sheet, in the header; the one being read is highlighted and kept in view. */
+function SectionNav({ items, current }: { items: { index: number; label: string; kind: string }[]; current: number }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bar.current?.querySelector('[aria-current="true"]')?.scrollIntoView?.({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [current]);
+  return (
+    <nav aria-label="Sections" ref={bar} className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none]">
+      {items.map((x) => (
+        <button
+          key={x.index}
+          type="button"
+          data-kind={x.kind}
+          aria-current={current === x.index}
+          onClick={() => document.getElementById(`sec-${x.index}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })}
+          className="song-sec-chip h-8 shrink-0 rounded-full px-3 text-xs font-semibold uppercase tracking-wide transition-colors"
+        >
+          {x.label}
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 function SongView({
@@ -122,6 +180,12 @@ function SongView({
   const [semitones, setSemitones] = useState(0);
   const [capo, setCapo] = useState(song.capo);
   const [playing, setPlaying] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [currentSection, setCurrentSection] = useState(0);
+  const page = useRef<HTMLDivElement>(null);
+  useScrollProgress(page);
+  const slideFrom = peekSongSlide();
+  useEffect(() => clearSongSlide(), []);
 
   // The chords in the chart are the shapes played with the capo saved on the song. Moving the capo changes the
   // shapes (not the sound); transposing changes the sound. `shift` is what is applied to the written chords.
@@ -143,9 +207,12 @@ function SongView({
   const next = position >= 0 ? order[position + 1] : undefined;
   const go = useCallback(
     (target: { id: string } | undefined) => {
-      if (target && setlistId) navigate(`/setlist/${setlistId}/song/${target.id}`, { replace: true });
+      if (target && setlistId) {
+        rememberSongSlide(target === next ? 'right' : 'left'); // the new song comes in from the side it is on
+        navigate(`/setlist/${setlistId}/song/${target.id}`, { replace: true });
+      }
     },
-    [navigate, setlistId],
+    [navigate, setlistId, next],
   );
   const onSwipe = (direction: SwipeDirection) => go(direction === 'next' ? next : previous);
   const swipe = useSwipe(onSwipe, mode === 'chords');
@@ -174,31 +241,38 @@ function SongView({
     return () => window.removeEventListener('keydown', onKey);
   }, [go, previous, next]);
 
+  const sectionItems = useMemo(
+    () =>
+      chartSections(chart)
+        .filter((x) => x.lines[0]?.kind === 'label')
+        .map((x) => {
+          const fallback = { verse: 'chart.verse', chorus: 'chart.chorus', bridge: 'chart.bridge', tab: 'chart.tab' } as const;
+          const key = x.section.kind === 'none' ? undefined : fallback[x.section.kind];
+          return { index: x.section.index, kind: x.section.kind, label: (x.section.text || (key ? t(key) : '')).replace(/:.*$/, '') };
+        })
+        .filter((x) => x.label !== ''),
+    [chart, t],
+  );
   const performerIds = item ? effectivePerformerIds(item, song) : song.defaultPerformerIds;
   const tuningId = item ? effectiveTuningId(item, song) : song.tuningId;
   const tuning = tuningId ? lookups.tunings.get(tuningId) : undefined;
   const nextSong = next ? lookups.songs.get(next.songId) : undefined;
-  const facts = [
-    shownKey && `${t('chart.key')} ${shownKey}`,
-    capo > 0 && `${t('chart.capo')} ${capo}`,
-    song.tempo && `${song.tempo} BPM`,
-    song.durationSec && formatDuration(song.durationSec),
-  ].filter(Boolean);
+
 
   const iconButton =
     'grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white/10 text-xl hover:bg-white/20 aria-disabled:opacity-30';
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div ref={page} className={`min-h-screen bg-paper ${slideFrom ? `band-in-${slideFrom}` : 'motion-safe:animate-fade-in'}`}>
       <header
-        className="sticky top-0 z-20 bg-chrome text-chrome-ink"
+        className="song-header sticky top-0 z-20 bg-chrome text-chrome-ink"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <Link to={setlistId ? `/setlist/${setlistId}` : '/library'} aria-label={t('common.back')} className={iconButton}>←</Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-xl font-bold uppercase leading-tight tracking-wide">{song.title}</h1>
-            <p className="truncate text-xs text-chrome-ink/70">
+            <h1 className="song-title truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide">{song.title}</h1>
+            <p className="song-sub truncate text-xs text-chrome-ink/70">
               {[song.artist, position >= 0 && t('chart.position', { n: position + 1, total: order.length })]
                 .filter(Boolean)
                 .join(' · ')}
@@ -216,55 +290,50 @@ function SongView({
             </Link>
           )}
         </div>
+        {mode === 'chords' && hasChart && sectionItems.length >= 3 && <SectionNav items={sectionItems} current={currentSection} />}
+        <span aria-hidden className="song-progress" />
       </header>
 
       <main
         {...swipe}
-        className="mx-auto max-w-3xl touch-pan-y touch-pinch-zoom px-4 pt-3"
+        className="mx-auto max-w-3xl touch-pan-y touch-pinch-zoom px-4 pt-4"
         style={{ paddingBottom: '12rem' }}
       >
-        {(facts.length > 0 || (tuning && !tuning.isStandard) || (hasChart && pdf)) && (
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-            {facts.length > 0 && <span className="text-sm font-semibold text-soft">{facts.join(' · ')}</span>}
+        {(shownKey || capo > 0 || song.tempo || song.durationSec || (tuning && !tuning.isStandard) || performerIds.length > 0) && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {shownKey && <Chip icon="key" onClick={hasChart && mode === 'chords' ? () => setControlsOpen(true) : undefined}>{`${t('chart.key')} ${shownKey}`}</Chip>}
+            {capo > 0 && <Chip icon="capo">{`${t('chart.capo')} ${capo}`}</Chip>}
+            {song.tempo ? (
+              <Chip icon="beat" pressed={metro} label={t('metro.title')} onClick={() => setMetro(!metro)}>{`♩ ${song.tempo}`}</Chip>
+            ) : null}
+            {song.durationSec ? <Chip icon="time">{formatDuration(song.durationSec)}</Chip> : null}
             {tuning && !tuning.isStandard && <TuningChip tuning={tuning} />}
-            {hasChart && pdf && (
-              <span role="group" className="ml-auto inline-flex overflow-hidden rounded-md border border-line">
-                {(['chords', 'pdf'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={mode === m}
-                    onClick={() => setMode(m)}
-                    className={`h-11 px-4 text-sm font-semibold ${mode === m ? 'bg-ink text-paper' : 'bg-surface text-ink'}`}
-                  >
-                    {t(m === 'chords' ? 'chart.chords' : 'chart.pdf')}
-                  </button>
-                ))}
-              </span>
-            )}
+            {performerIds.map((id) => {
+              const p = lookups.performers.get(id);
+              return p ? (
+                <span key={id} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface pl-1 pr-3 text-sm font-semibold" style={{ borderColor: `${p.color}66` }}>
+                  <PerformerBadge performer={p} size={22} />
+                  {p.name}
+                </span>
+              ) : null;
+            })}
           </div>
         )}
 
-        {/* Who plays it, stage mode and which part to read: one line, so the chart starts higher on a phone. */}
+        {/* Stage mode, the metronome (when the song has no tempo) and which part to read, joined in one bar. */}
         <div className="mb-3 flex items-center gap-2">
-          {performerIds.length > 0 && (
-            <span className="flex shrink-0 items-center gap-1">
-              {performerIds.map((id) => {
-                const p = lookups.performers.get(id);
-                return p ? <PerformerBadge key={id} performer={p} /> : null;
-              })}
-            </span>
-          )}
           <StageToggle />
-          <button
-            type="button"
-            aria-pressed={metro}
-            aria-label={t('metro.title')}
-            onClick={() => setMetro(!metro)}
-            className={`h-11 shrink-0 rounded-md border border-line px-3 text-sm font-semibold ${metro ? 'bg-chrome text-chrome-ink' : 'bg-surface'}`}
-          >
-            ♩ {song.tempo ?? ''}
-          </button>
+          {!song.tempo && (
+            <button
+              type="button"
+              aria-pressed={metro}
+              aria-label={t('metro.title')}
+              onClick={() => setMetro(!metro)}
+              className={`h-11 shrink-0 rounded-md border border-line px-3 text-sm font-semibold transition-colors ${metro ? 'bg-chrome text-chrome-ink' : 'bg-surface'}`}
+            >
+              ♩
+            </button>
+          )}
           {tabs.length > 0 && (
             <Select
               label={t('part.select')}
@@ -273,6 +342,14 @@ function SongView({
               value={onText ? 'text' : tab}
               onChange={setTab}
               options={[{ value: 'text', label: t('part.text') }, ...tabs.map((x) => ({ value: x.instrument.id, label: x.instrument.name }))]}
+            />
+          )}
+          {hasChart && pdf && (
+            <Segmented
+              className="ml-auto shrink-0"
+              value={mode}
+              onChange={setMode}
+              options={[{ value: 'chords', label: t('chart.chords') }, { value: 'pdf', label: t('chart.pdf') }]}
             />
           )}
         </div>
@@ -289,7 +366,7 @@ function SongView({
         ))}
 
         {mode === 'chords' && hasChart && (
-          <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} />
+          <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} onCurrentSection={setCurrentSection} />
         )}
         {mode === 'pdf' && pdf && tabPdfs.length > 1 && (
           <Select
@@ -307,9 +384,19 @@ function SongView({
           </Suspense>
         )}
         {!hasChart && !pdf && (
-          <div className="py-12 text-center">
+          <div className="flex flex-col items-center py-12 text-center">
+            <svg viewBox="0 0 120 64" width="168" height="90" aria-hidden className="mb-5 text-io">
+              {[10, 22, 34, 46, 58].map((y, i) => (
+                <line key={y} x1="4" x2="116" y1={y} y2={y} stroke="currentColor" strokeWidth="1.5" opacity="0.35" className="staff-line" style={{ animationDelay: `${i * 90}ms` }} />
+              ))}
+              <g fill="currentColor" className="staff-note">
+                <ellipse cx="38" cy="46" rx="6.5" ry="4.8" transform="rotate(-18 38 46)" /><path d="M43.8 44.5V16" stroke="currentColor" strokeWidth="2" />
+                <ellipse cx="70" cy="34" rx="6.5" ry="4.8" transform="rotate(-18 70 34)" /><path d="M75.8 32.5V8" stroke="currentColor" strokeWidth="2" />
+                <ellipse cx="98" cy="22" rx="6.5" ry="4.8" transform="rotate(-18 98 22)" opacity="0.6" />
+              </g>
+            </svg>
             <p className="mb-4 text-soft">{t('chart.empty')}</p>
-            <Link to={`/library/${song.id}`} className={buttonClass('primary')}>{t('chart.emptyAction')}</Link>
+            {canEdit && <Link to={`/library/${song.id}`} className={buttonClass('primary')}>{t('chart.emptyAction')}</Link>}
           </div>
         )}
 
@@ -329,6 +416,9 @@ function SongView({
         scrollLevel={scrollLevel}
         onScrollLevel={setScrollLevel}
         stage={stage}
+        controlsOpen={controlsOpen}
+        onControlsOpen={setControlsOpen}
+        onNext={() => rememberSongSlide('right')}
         {...(nextSong && next ? { next: { title: nextSong.title, to: `/setlist/${setlistId}/song/${next.id}` } } : {})}
       />
     </div>

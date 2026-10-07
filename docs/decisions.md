@@ -393,3 +393,22 @@ and what still has to be tried by hand on real devices.
 - **Floating "New setlist"** is portalled to `body` (the swipe wrapper has a transform, which would break `position: fixed`).
 - **Reduced motion** (`prefers-reduced-motion`) turns every hook off: no variables, no observers, nothing hidden before it enters.
 - Not done: manual reordering of setlists (the home is ordered by date); a list-reflow animation (FLIP) when archiving or duplicating.
+
+## Phase 16 — The song page and the song form
+- **Song page**: the title folds and a reading bar fills (`--sp`, `--rd` from `useScrollProgress`); the facts are chips (the key chip
+  opens the transposer, the tempo chip the metronome), singers show their names; the Chords / PDF switch is a sliding `Segmented`.
+- **Sections** (`chartSections`): each label starts a section drawn with a coloured rule (verse teal, chorus violet, bridge pink).
+  The one at reading height stays sharp and the others fade (IntersectionObserver, off with reduced motion); with three or more
+  labelled sections the header shows jump chips that follow the reading. In stage mode the rule is thicker.
+- **Bottom bar**: while you scroll down (or the page scrolls by itself) it sinks into a pill (play, speed, a way back) and returns
+  on a scroll up or at the end of the song, where "next" is. The display controls got sliders (text size, speed).
+- **Moving along a setlist** slides the new song in from its side (`state/songSlide`). A setlist card on the home flies its title
+  to the setlist page with the View Transitions API (`lib/viewTransition`), where the browser has it.
+- **PDF**: a pill with zoom (60–300%), fit and "page / pages".
+- **Form**: a sticky step bar (follows the scroll, shows how much is filled in), cards with an icon, a key grid (writes the same text
+  as the input), tap-tempo and a listening button next to the tempo, a duration slider, singers as colour chips, tags used before
+  as chips, and a "Unsaved changes" light by the save button. Failed saves scroll to the first bad field, focus it and shake it.
+- **ChordPro editor** (`ChordProEditor`): marks are coloured by a copy of the text drawn behind a see-through textarea (which grows
+  with its text so the two always line up), buttons insert a section or a chord of the key (`diatonicChords`), a counter, and the
+  sheet itself beside it (below a Write / Preview switch on a phone).
+- Not done: a thumbnail of a PDF's first page and an upload progress bar (the files never leave the device while choosing).

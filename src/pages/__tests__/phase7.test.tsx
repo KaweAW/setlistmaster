@@ -158,8 +158,8 @@ describe('parts of a song', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(async () => expect((await store.songs.get(song.id))!.instrumentIds).toEqual([bass.id]));
+    await waitFor(async () => expect(await store.parts.listBy('songId', song.id)).toHaveLength(1)); // written after the song
     const parts = await store.parts.listBy('songId', song.id);
-    expect(parts).toHaveLength(1);
     expect(parts[0]!.id).toBe(await partId(band.id, song.id, bass.id));
     expect(parts[0]!.chordpro).toBe('[E]walk [A]down');
   });

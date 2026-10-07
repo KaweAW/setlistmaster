@@ -4,8 +4,9 @@ import { insertNote, NOTE_COLORS, type NoteColor } from '../core/chordpro';
 import { formatBytes } from '../core/format';
 import type { Instrument } from '../core/types';
 import { useT } from '../i18n';
+import { ChordProEditor } from './ChordProEditor';
 import { ConvertDialog } from './ConvertDialog';
-import { Button, buttonClass, Field, inputClass, textareaClass } from './ui';
+import { Button, buttonClass, Field, inputClass } from './ui';
 
 export interface PdfInfo {
   id: string;
@@ -23,6 +24,7 @@ export interface PendingPdf {
 }
 
 export const TEXT_PART = 'text';
+const toolChip = 'h-9 shrink-0 rounded-md border border-dashed border-line bg-surface px-3 text-sm font-semibold text-soft transition-transform hover:border-io/60 active:scale-95';
 
 export interface PdfState {
   kept: PdfInfo[];
@@ -37,7 +39,7 @@ export interface PdfState {
  * Each tab holds its own text (ChordPro, with chords or tabs) and its own PDFs, so the form stays one screen tall.
  */
 export function PartsEditor({
-  instruments, ticked, onTick, onUntick, textOf, setText, pdfs, hasContent,
+  instruments, ticked, onTick, onUntick, textOf, setText, pdfs, hasContent, songKey,
 }: {
   instruments: Instrument[];
   ticked: string[];
@@ -48,6 +50,8 @@ export function PartsEditor({
   pdfs: PdfState;
   /** Does this instrument already have text or PDFs (ask before throwing them away)? */
   hasContent: (instrumentId: string) => boolean;
+  /** The key typed on the form: the chord buttons and the preview follow it. */
+  songKey: string;
 }) {
   const t = useT();
   const [active, setActive] = useState<string>(TEXT_PART);
@@ -120,21 +124,21 @@ export function PartsEditor({
       </div>
 
       <div role="tabpanel" className="space-y-3">
-        <Field label={current ? t('part.chordpro', { name: current.name }) : t('field.chordpro')}>
-          <textarea
-            className={`${textareaClass} font-mono text-[15px]`}
-            rows={part === TEXT_PART ? 12 : 10}
-            spellCheck={false}
-            ref={area}
-            value={textOf(part)}
-            onChange={(e) => setText(part, e.target.value)}
-          />
-        </Field>
-        <p className="-mt-2 text-xs text-soft">{current ? t('part.hint') : t('field.chordpro.hint')}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setNoteOpen((o) => !o)} aria-expanded={noteOpen}>{t('note.add')}</Button>
-          <Button variant="secondary" onClick={() => setConvertOpen(true)}>{t('convert.open')}</Button>
-        </div>
+        <ChordProEditor
+          label={current ? t('part.chordpro', { name: current.name }) : t('field.chordpro')}
+          hint={current ? t('part.hint') : t('field.chordpro.hint')}
+          value={textOf(part)}
+          onChange={(text) => setText(part, text)}
+          songKey={songKey}
+          minRows={part === TEXT_PART ? 12 : 10}
+          areaRef={area}
+          extra={
+            <>
+              <button type="button" className={toolChip} onClick={() => setNoteOpen((o) => !o)} aria-expanded={noteOpen}>{t('note.add')}</button>
+              <button type="button" className={toolChip} onClick={() => setConvertOpen(true)}>{t('convert.open')}</button>
+            </>
+          }
+        />
         {noteOpen && (
           <div className="space-y-3 rounded-md border border-line bg-paper p-3">
             <p className="text-xs text-soft">{t('note.hint')}</p>

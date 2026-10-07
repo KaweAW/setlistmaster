@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { transposeChord, type Accidentals } from '../core/chords';
-import type { ChartLine, ParsedChart, SectionKind } from '../core/chordpro';
+import { chartSections, type ChartLine, type ParsedChart, type SectionKind } from '../core/chordpro';
+import { calmDevice } from '../hooks/useHomeMotion';
 import { useT, type MessageKey } from '../i18n';
 
 const SECTION_LABELS: Partial<Record<SectionKind, MessageKey>> = {
@@ -19,6 +20,8 @@ export function ChordChart({
   accidentals,
   fontSize,
   stage = false,
+  onCurrentSection,
+  focus = true,
 }: {
   chart: ParsedChart;
   semitones: number;
@@ -26,8 +29,14 @@ export function ChordChart({
   fontSize: number;
   /** On stage the chords become bold pills and sections get more air, to read at arm's length. */
   stage?: boolean;
+  /** Told which section is at reading height while the page scrolls (for the section index). */
+  onCurrentSection?: (index: number) => void;
+  /** Fade the sections that are not being read. Off in the editor's preview, where nothing scrolls the sheet. */
+  focus?: boolean;
 }) {
   const t = useT();
+  const root = useRef<HTMLDivElement>(null);
+  const parts = chartSections(chart);
   const show = (chord: string) => transposeChord(chord, semitones, accidentals);
 
   const renderLine = (line: ChartLine, index: number) => {
@@ -49,18 +58,17 @@ export function ChordChart({
         const labelKey = SECTION_LABELS[line.section];
         const text = line.text || (labelKey ? t(labelKey) : '');
         return text ? (
-          <h3 key={index} className={`mb-1 ${stage ? 'mt-8' : 'mt-5'} font-display text-[0.75em] font-bold uppercase tracking-widest text-soft`}>{text}</h3>
+          <h3 key={index} className="chart-label mb-1 font-display text-[0.75em] font-bold uppercase tracking-widest">{text}</h3>
         ) : null;
       }
       case 'lyrics': {
         const hasChords = line.segments.some((s) => s.chord);
-        const accent = line.section === 'chorus' ? 'border-l-4 border-coro/40 pl-3' : '';
         if (!hasChords) {
           const text = line.segments.map((s) => s.lyrics).join('');
-          return <div key={index} className={`whitespace-pre-wrap ${accent}`}>{text}</div>;
+          return <div key={index} className="whitespace-pre-wrap">{text}</div>;
         }
         return (
-          <div key={index} className={`flex flex-wrap ${accent}`}>
+          <div key={index} className="flex flex-wrap">
             {line.segments.map((segment, i) => (
               <span key={i} className="inline-flex flex-col">
                 <span className={`mr-[0.5em] min-h-[1.25em] whitespace-pre font-bold leading-tight text-chord ${stage ? 'chord-pill' : ''}`}>
@@ -75,9 +83,45 @@ export function ChordChart({
     }
   };
 
+  // The section crossing the reading line (a bit above the middle of the screen) is the one in focus; the rest fade back.
+  const count = parts.length;
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !focus || count < 2 || typeof IntersectionObserver === 'undefined') return;
+    const calm = calmDevice();
+    if (!calm) el.setAttribute('data-focus', '');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const target = e.target as HTMLElement;
+          el.querySelectorAll('[data-current]').forEach((n) => n !== target && n.removeAttribute('data-current'));
+          target.setAttribute('data-current', '');
+          onCurrentSection?.(Number(target.dataset.section));
+        }
+      },
+      { rootMargin: '-30% 0px -55% 0px' },
+    );
+    el.querySelectorAll('[data-section]').forEach((n) => observer.observe(n));
+    return () => {
+      observer.disconnect();
+      el.removeAttribute('data-focus');
+    };
+  }, [count, chart, onCurrentSection, focus]);
+
   return (
-    <div style={{ fontSize }} className={stage ? 'leading-normal' : 'leading-snug'}>
-      {chart.lines.map(renderLine)}
+    <div ref={root} style={{ fontSize }} className={`chart ${stage ? 'leading-normal' : 'leading-snug'}`}>
+      {parts.map(({ section, lines }) => (
+        <section
+          key={section.index}
+          id={`sec-${section.index}`}
+          data-section={section.index}
+          data-kind={section.kind}
+          className={`chart-section ${stage ? 'chart-section--stage' : ''}`}
+        >
+          {lines.map((line, i) => renderLine(line, section.index * 10_000 + i))}
+        </section>
+      ))}
     </div>
   );
 }
