@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useState } from 'react';
 import { sameIdSet, type ItemPatch } from '../core/setlistOps';
 import { formatTuningNotes } from '../core/tuning';
@@ -82,16 +83,15 @@ export function ItemEditorDialog({
         </Field>
 
         <Field label={t('item.tuning')}>
-          <select className={inputClass} value={tuningOverrideId} onChange={(e) => setTuningOverrideId(e.target.value)}>
-            <option value="">
-              {t('item.tuningDefault', { name: songTuning ? songTuning.name : '—' })}
-            </option>
-            {tunings.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}`}
-              </option>
-            ))}
-          </select>
+          <Select
+            label={t('item.tuning')}
+            value={tuningOverrideId}
+            onChange={setTuningOverrideId}
+            options={[
+              { value: '', label: t('item.tuningDefault', { name: songTuning ? songTuning.name : '—' }) },
+              ...tunings.map((x) => ({ value: x.id, label: x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}` })),
+            ]}
+          />
         </Field>
 
         <FieldGroup legend={t('item.transition')}>

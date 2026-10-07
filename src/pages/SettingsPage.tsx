@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { useState } from 'react';
 import { performerUsage, tuningUsage } from '../core/usage';
 import { useCanEdit } from '../cloud/CloudProvider';
@@ -8,7 +9,7 @@ import { CloudSection } from '../components/CloudSection';
 import { AppearanceSection, BackupSection, DangerSection, DataSection } from '../components/SettingsData';
 import { TuningChip } from '../components/TuningChip';
 import { TuningForm } from '../components/TuningForm';
-import { Button, Field, inputClass, PageTitle } from '../components/ui';
+import { Button, Field, PageTitle } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { useQuery } from '../hooks/useQuery';
 import { useT, type Language } from '../i18n';
@@ -25,10 +26,12 @@ export default function SettingsPage() {
 
       <section>
         <Field label={t('settings.language')} className="max-w-xs">
-          <select className={inputClass} value={language} onChange={(e) => setLanguage(e.target.value as Language)}>
-            <option value="it">Italiano</option>
-            <option value="en">English</option>
-          </select>
+          <Select
+            label={t('settings.language')}
+            value={language}
+            onChange={(v) => setLanguage(v as Language)}
+            options={[{ value: 'it', label: 'Italiano' }, { value: 'en', label: 'English' }]}
+          />
         </Field>
       </section>
 

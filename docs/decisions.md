@@ -378,3 +378,18 @@ and what still has to be tried by hand on real devices.
   a normal local copy. "Keep a copy here" lets the creator keep a local copy too. Members use **Leave** instead.
 - Migration `0004_band_management.sql`: `bands.notes`, `update_band`, `delete_band`, `notices`, `dismiss_notice`.
 - Duplicate "Personal" bands are prevented by a single-flight, database-checked `ensurePersonalBand`.
+
+## Phase 15 — Drop-downs and a livelier home
+- **`Select`** (`components/Select.tsx`) replaces all 15 native `<select>`. A combobox button opens a listbox in a portal: a popover that
+  grows out of the field on desktop (flips upward near the bottom edge), a bottom sheet on phones (`max-width: 639px`). Arrows, Home/End,
+  PageUp/Down, type-ahead, Enter/Space, Esc and Tab behave as in a native select; Esc does not close a dialog around it. More than 8
+  options adds a search box. Options settle in with a short stagger and the tick pops in. Tests pick with `choose(label, value)`.
+- **Home motion** is driven by CSS variables written by `hooks/useHomeMotion` (no React re-render while moving): `--sy/--sp` for the
+  collapsing sticky title, the wave parallax and the floating button; an IntersectionObserver for the staggered entrance (`data-in`) and
+  the card crossing the middle of the screen (`data-active`); pointer glow and a 2° tilt on `[data-fx]` cards (mouse only);
+  a magnetic floating button (`useMagnetic`); pale colour washes behind the app that follow the mouse (`AmbientBackground`).
+- **Cards, not rows**: a coloured edge (teal upcoming, pink today, grey past), singers as small badges, a **next gig** card with the
+  countdown (`core/countdown.ts`), an animated empty state, a shimmering skeleton while loading, a press effect on cards.
+- **Floating "New setlist"** is portalled to `body` (the swipe wrapper has a transform, which would break `position: fixed`).
+- **Reduced motion** (`prefers-reduced-motion`) turns every hook off: no variables, no observers, nothing hidden before it enters.
+- Not done: manual reordering of setlists (the home is ordered by date); a list-reflow animation (FLIP) when archiving or duplicating.

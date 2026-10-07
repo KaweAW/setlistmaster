@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { choose } from '../../components/__tests__/choose';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -106,9 +107,9 @@ describe('theme and stage mode', () => {
   it('is switched from the settings, and the theme can be chosen', async () => {
     await setup('/settings');
     await screen.findByRole('heading', { name: 'Appearance' });
-    fireEvent.change(screen.getByLabelText('Theme'), { target: { value: 'dark' } });
+    await choose('Theme', 'dark');
     expect(useUiStore.getState().theme).toBe('dark');
-    fireEvent.change(screen.getByLabelText('Theme'), { target: { value: 'light' } });
+    await choose('Theme', 'light');
     fireEvent.click(screen.getByRole('button', { name: 'Stage mode' }));
     expect(useUiStore.getState().stageMode).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(true);

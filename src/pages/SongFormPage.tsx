@@ -1,3 +1,4 @@
+import { Select } from '../components/Select';
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { formatDuration, parseDuration } from '../core/format';
@@ -279,11 +280,12 @@ function SongForm({
             </datalist>
           </Field>
           <Field label={t('field.capo')}>
-            <select className={inputClass} value={capo} onChange={(e) => setCapo(Number(e.target.value))}>
-              {Array.from({ length: 13 }, (_, n) => (
-                <option key={n} value={n}>{n === 0 ? t('capo.none') : n}</option>
-              ))}
-            </select>
+            <Select
+              label={t('field.capo')}
+              value={String(capo)}
+              onChange={(v) => setCapo(Number(v))}
+              options={Array.from({ length: 13 }, (_, n) => ({ value: String(n), label: n === 0 ? t('capo.none') : String(n) }))}
+            />
           </Field>
           <Field label={t('field.tempo')} error={errors.tempo && t(errors.tempo)}>
             <input className={inputClass} inputMode="numeric" value={tempo} onChange={(e) => setTempo(e.target.value)} />
@@ -295,18 +297,15 @@ function SongForm({
 
         <div className="space-y-2">
           <Field label={t('field.tuning')}>
-            <select
-              className={inputClass}
+            <Select
+              label={t('field.tuning')}
               value={tuningId}
-              onChange={(e) => (e.target.value === NEW_TUNING ? setNewTuningOpen(true) : setTuningId(e.target.value))}
-            >
-              {tuningList.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}`}
-                </option>
-              ))}
-              <option value={NEW_TUNING}>{t('tuning.addNew')}</option>
-            </select>
+              onChange={(v) => (v === NEW_TUNING ? setNewTuningOpen(true) : setTuningId(v))}
+              options={[
+                ...tuningList.map((x) => ({ value: x.id, label: x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}` })),
+                { value: NEW_TUNING, label: t('tuning.addNew') },
+              ]}
+            />
           </Field>
           {newTuningOpen && (
             <TuningForm title={t('tuning.newTitle')} onSubmit={createTuning} onCancel={() => setNewTuningOpen(false)} />

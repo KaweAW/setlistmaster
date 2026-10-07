@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { choose } from '../../components/__tests__/choose';
 import { songAttachments } from '../../data/attachments';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -40,7 +41,7 @@ describe('library', () => {
     await screen.findByText('25 songs');
     const tunings = await store.tunings.listBy('bandId', band.id);
     const drop = tunings.find((x) => x.name === 'Drop D')!;
-    fireEvent.change(screen.getByLabelText('All tunings'), { target: { value: drop.id } });
+    await choose('All tunings', drop.id);
     expect(await screen.findByText('1 song')).toBeTruthy();
     expect(screen.getByText('The Chain')).toBeTruthy();
   });
@@ -58,12 +59,12 @@ describe('song form', () => {
     fireEvent.change(title, { target: { value: 'Black Hole Sun' } });
     fireEvent.change(screen.getByLabelText('Artist'), { target: { value: 'Soundgarden' } });
     fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'Em' } });
-    fireEvent.change(screen.getByLabelText('Capo'), { target: { value: '2' } });
+    await choose('Capo', '2');
     fireEvent.change(screen.getByLabelText('Tempo (BPM)'), { target: { value: '102' } });
     fireEvent.change(screen.getByLabelText('Duration (m:ss)'), { target: { value: '5:18' } });
 
     // tuning created on the fly
-    fireEvent.change(screen.getByLabelText('Tuning'), { target: { value: '__new__' } });
+    await choose('Tuning', '__new__');
     await screen.findByRole('heading', { name: 'New tuning' });
     const form = document.body;
     const nameInputs = within(form).getAllByLabelText('Name');

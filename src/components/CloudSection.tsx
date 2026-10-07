@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCloud } from '../cloud/CloudProvider';
@@ -80,15 +81,14 @@ export function Members({ bandId, bandName, role }: { bandId: string; bandName: 
             </span>
             {isCreator && m.role !== 'creator' ? (
               <>
-                <select
-                  aria-label={`${t('cloud.inviteRole')} ${m.email}`}
-                  className={`${inputClass} !h-9 !w-auto`}
+                <Select
+                  label={`${t('cloud.inviteRole')} ${m.email}`}
+                  variant="compact"
+                  className="!h-9 w-32"
                   value={m.role}
-                  onChange={(e) => void act(() => api.setMemberRole(bandId, m.userId, e.target.value as InviteRole))}
-                >
-                  <option value="editor">{t('cloud.role.editor')}</option>
-                  <option value="viewer">{t('cloud.role.viewer')}</option>
-                </select>
+                  onChange={(v) => void act(() => api.setMemberRole(bandId, m.userId, v as InviteRole))}
+                  options={[{ value: 'editor', label: t('cloud.role.editor') }, { value: 'viewer', label: t('cloud.role.viewer') }]}
+                />
                 <Button variant="danger" className="!h-9 px-3 text-sm" onClick={() => {
                   if (window.confirm(t('cloud.removeConfirm', { email: m.email }))) void act(() => api.removeMember(bandId, m.userId));
                 }}>{t('cloud.remove')}</Button>
@@ -150,10 +150,12 @@ export function InviteForm({ bandId, bandName, open, onChanged }: { bandId: stri
         <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Field>
       <Field label={t('cloud.inviteRole')} className="max-w-xs">
-        <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value as InviteRole)}>
-          <option value="editor">{t('cloud.role.editor')}</option>
-          <option value="viewer">{t('cloud.role.viewer')}</option>
-        </select>
+        <Select
+          label={t('cloud.inviteRole')}
+          value={role}
+          onChange={(v) => setRole(v as InviteRole)}
+          options={[{ value: 'editor', label: t('cloud.role.editor') }, { value: 'viewer', label: t('cloud.role.viewer') }]}
+        />
       </Field>
       <Button onClick={() => void create()}>{t('cloud.inviteCreate')}</Button>
       {error && <p role="alert" className="text-sm font-semibold text-lei">{error}</p>}
