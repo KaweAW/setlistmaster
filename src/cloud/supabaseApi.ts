@@ -204,6 +204,14 @@ export function createSupabaseApi(): CloudApi {
       const rows = await select<{ name: string }[]>((db) => db.from('bands').select('name').eq('id', bandId).limit(1));
       return rows[0]?.name ?? null;
     },
+    async myBands() {
+      const user = await this.currentUser();
+      if (!user) return [];
+      const rows = await select<{ band_id: string; role: CloudRole; bands: { name: string } | { name: string }[] | null }[]>((db) =>
+        db.from('members').select('band_id,role,bands(name)').eq('user_id', user.id),
+      );
+      return rows.map((r) => ({ id: r.band_id, role: r.role, name: (Array.isArray(r.bands) ? r.bands[0]?.name : r.bands?.name) ?? 'Band' }));
+    },
     async myRole(bandId) {
       return (await rpc<string | null>('member_role', { p_band: bandId })) as CloudRole | null;
     },

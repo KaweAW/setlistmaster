@@ -1,5 +1,5 @@
 import { RemoteFlash } from '../components/RemoteFlash';
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDate, formatTotalDuration } from '../core/format';
 import { setlistStats } from '../core/stats';
@@ -10,13 +10,14 @@ import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
 import { createSetlist, deleteSetlist, duplicateSetlist } from '../data/setlistService';
 import { useQuery } from '../hooks/useQuery';
-import { useSwipe } from '../hooks/useSwipe';
+import { resetSwipe, useSwipeDrag } from '../hooks/useSwipeDrag';
 import { useT } from '../i18n';
+import { clearSlide, peekSlide } from '../state/bandSlide';
 import { useUiStore } from '../state/uiStore';
 
 const byDateDesc = (a: Setlist, b: Setlist) => (b.date ?? '').localeCompare(a.date ?? '') || b.updatedAt - a.updatedAt;
 
-export default function HomePage() {
+function SetlistList() {
   const t = useT();
   const language = useUiStore((s) => s.language);
   const navigate = useNavigate();
@@ -24,8 +25,6 @@ export default function HomePage() {
   const canEdit = useCanEdit(band.id);
   const [showArchived, setShowArchived] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const tabs = useRef<BandTabsHandle | null>(null);
-  const swipe = useSwipe((direction) => tabs.current?.swipe(direction));
 
   const { data, loading, reload } = useQuery(async () => {
     const [setlists, items, songs, blocks] = await Promise.all([
@@ -119,9 +118,7 @@ export default function HomePage() {
   }
 
   return (
-    <main {...swipe} className="mx-auto min-h-[70vh] w-full max-w-3xl px-4 py-6">
-      <BandTabs handleRef={tabs} />
-      <div key={band.id} className="motion-safe:animate-fade-in">
+    <>
       <div className="mb-4 flex items-center justify-between gap-3">
         <PageTitle>{t('home.title')}</PageTitle>
         {canEdit ? <Button onClick={() => void create()}>{t('home.new')}</Button> : <span className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-soft">{t('readonly.badge')}</span>}
@@ -143,6 +140,26 @@ export default function HomePage() {
         <span>{t('home.library')}</span>
         <span aria-hidden>{data.songs.length} →</span>
       </Link>
+    </>
+  );
+}
+
+/** The home: band tabs on top, the setlists of the chosen band below. Both follow a horizontal drag of the finger. */
+export default function HomePage() {
+  const { band } = useData();
+  const tabs = useRef<BandTabsHandle | null>(null);
+  const main = useRef<HTMLElement>(null);
+  const drag = useSwipeDrag(main, (d) => tabs.current?.allow(d) ?? null, (d) => tabs.current?.swipe(d));
+  const from = peekSlide();
+  useLayoutEffect(() => resetSwipe(main.current), [band.id]);
+  useEffect(() => clearSlide(), [band.id]);
+  return (
+    <main ref={main} {...drag} className="mx-auto min-h-[70vh] w-full max-w-3xl px-4 py-6">
+      <BandTabs handleRef={tabs} />
+      <div className="swipe-content">
+        <div key={band.id} className={from ? `band-in-${from}` : 'motion-safe:animate-fade-in'}>
+          <SetlistList />
+        </div>
       </div>
     </main>
   );

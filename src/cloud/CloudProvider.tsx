@@ -162,6 +162,32 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
     return () => ids.forEach((id) => engine.unwatch(id));
   }, [api, engine, signedIn, linked, refreshRole]);
 
+  // Bands I belong to but this device does not hold yet (made on another device, or added to my account): bring them in.
+  useEffect(() => {
+    if (!api || !signedIn) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const mine = await api.myBands();
+        let added = false;
+        for (const b of mine) {
+          if (!(await store.bands.has(b.id))) {
+            await store.bands.create({ id: b.id, name: b.name });
+            await store.sync.linkBand(b.id); // reading only: nothing of ours goes up
+            added = true;
+          }
+          if (alive) setRoles((r) => ({ ...r, [b.id]: b.role }));
+        }
+        if (alive && added) await reloadLinked();
+      } catch {
+        /* offline or not allowed: nothing to add */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [api, signedIn, store, reloadLinked]);
+
   // Local edits go out shortly after (several edits in a row travel together).
   useEffect(() => {
     if (!engine || !signedIn) return;

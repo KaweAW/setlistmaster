@@ -351,10 +351,17 @@ and what still has to be tried by hand on real devices.
 - **Two kinds of band, shown as two tabs** on top of the setlists: "Personal" (the device's own band while it is only on this
   device) and the shared band (created here and shared, or joined with an invitation). Data is still per band: sharing a band
   shares all of its songs and setlists. A single setlist cannot be private inside a shared band.
-- If the own band is shared, it moves to the shared tab and the personal tab goes away. With several shared bands the Band
+- Personal = the oldest band of the device that is not shared. If every band is shared, the home creates an empty personal one
+  (with the default instruments), so there is always a way back. With several shared bands the Band
   tab shows the active one with a ▾ and opens a small menu (slides open) to choose another.
 - **Swipe** on the home (finger moves left): Personal → Band; once on Band, one more swipe opens the band menu; swiping right
   closes the menu or goes back to Personal. Tabs are hidden on a copy of the app without cloud settings and no shared band.
 - Colours: teal (`io`) for Personal, violet (`coro`) for Band, on the site's neutral surfaces; icons (lock / people) carry the
   meaning too, not colour alone.
 - Pure rule in `core/bandTabs.ts` (`groupBands`).
+- **Bands of my account** (`CloudApi.myBands`): on sign-in the device adds every band the person belongs to and does not hold yet
+  (made elsewhere, or added to the account), linked for reading, and learns the role. No invitation is needed for one's own bands.
+- **Drag, not just swipe**: on a phone the home follows the finger. `useSwipeDrag` writes CSS variables (`--cx`, `--co`, `--drag`) on
+  the page while the finger moves; the highlight under the tabs is positioned by `clamp(0, idx + drag, 1)`, so it moves 1:1 with the
+  finger and settles on release. On a deliberate swipe the old content keeps sliding out and the new band's content comes in from
+  the other side (`band-in-left/right`). Reduced motion removes the movement.

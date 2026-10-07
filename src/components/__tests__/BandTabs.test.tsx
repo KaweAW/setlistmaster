@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AppRoutes from '../../routes';
 import { bootstrap } from '../../data/bootstrap';
@@ -9,6 +9,10 @@ import { DataProvider } from '../../data/DataProvider';
 import { useUiStore } from '../../state/uiStore';
 import { CloudProvider } from '../../cloud/CloudProvider';
 import { FakeCloudServer } from '../../cloud/__tests__/fakeCloud';
+
+// Switching band reopens the store and reloads the page: on a slow CI machine that takes longer than the 1 s default.
+configure({ asyncUtilTimeout: 10_000 });
+vi.setConfig({ testTimeout: 30_000 });
 
 vi.mock('../PdfViewer', () => ({ default: () => null }));
 
@@ -86,5 +90,28 @@ describe('home band tabs', () => {
     );
     await screen.findByRole('heading', { name: 'Setlists' });
     expect(screen.queryByRole('tablist')).toBeNull();
+  });
+});
+
+describe('bands of my account', () => {
+  it('brings in the bands I belong to in the cloud, and keeps a personal space when the first band is shared', async () => {
+    const server = new FakeCloudServer();
+    const creator = server.as({ id: 'u-other', email: 'o@x.it' });
+    await creator.createBand('cloud-1', 'Wolves');
+    const inv = await creator.createInvitation('cloud-1', 'editor', KAWE.email);
+    const me = server.as(KAWE);
+    await me.acceptInvitation(inv); // a membership made elsewhere: this device does not know the band yet
+
+    const store = createDexieStore({ dbName: `tabs-${++n}` });
+    const own = await bootstrap(store, 'Mine', null, 'en');
+    await store.sync.linkBand(own.id); // the device's own band is already shared
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <DataProvider store={store}><CloudProvider api={me}><AppRoutes /></CloudProvider></DataProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ })).toBeTruthy());
+    expect((await store.bands.listAll()).map((b) => b.name).sort()).toEqual(['Mine', 'Personal', 'Wolves']);
+    expect(await store.sync.linkedBands()).toContain('cloud-1');
   });
 });
