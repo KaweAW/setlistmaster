@@ -29,12 +29,14 @@ export default {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'slide-down-in': { from: { opacity: '0', transform: 'translateY(-6px)' }, to: { opacity: '1', transform: 'none' } },
         'rise-in': { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'none' } },
+        pop: { '0%': { transform: 'scale(0.4)', opacity: '0' }, '70%': { transform: 'scale(1.15)' }, '100%': { transform: 'scale(1)', opacity: '1' } },
         'sheet-in': { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'none' } },
       },
       animation: {
         'fade-in': 'fade-in 160ms ease-out both',
         'slide-down-in': 'slide-down-in 200ms ease-out both',
         'rise-in': 'rise-in 180ms ease-out both',
+        pop: 'pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
         'sheet-in': 'sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
       },
       fontFamily: {

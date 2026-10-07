@@ -135,7 +135,14 @@ describe('setlist page', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: '+ Add song' }))[0]!);
     const dialog = await screen.findByRole('dialog');
 
-    fireEvent.click(within(dialog).getAllByRole('button', { name: /Creep/ })[0]!);
+    const song = () => within(dialog).getByRole('switch', { name: /Zombie/ });
+    fireEvent.click(song());
+    await waitFor(async () => expect((await loadTree(store, setlist.id))!.items).toHaveLength(23));
+    expect(song().getAttribute('aria-checked')).toBe('true');
+    // a second tap takes it out again instead of adding a duplicate
+    fireEvent.click(song());
+    await waitFor(async () => expect((await loadTree(store, setlist.id))!.items).toHaveLength(22));
+    fireEvent.click(song());
     await waitFor(async () => expect((await loadTree(store, setlist.id))!.items).toHaveLength(23));
 
     fireEvent.click(within(dialog).getByRole('button', { name: /New song/ }));

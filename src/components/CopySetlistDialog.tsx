@@ -67,6 +67,7 @@ export function CopySetlistDialog({ setlist, onClose }: { setlist: Setlist; onCl
             {targets.map((b) => <Target key={b.id} band={b} label={nameOf(b)} busy={busy} onPick={() => void pick(b)} />)}
           </ul>
           {error && <p role="alert" className="mt-3 text-sm font-semibold text-lei">{t('copy.error')}</p>}
+          <Button variant="secondary" className="mt-4 w-full" onClick={onClose}>{t('copy.close')}</Button>
         </>
       )}
     </Modal>
