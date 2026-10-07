@@ -1,0 +1,90 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import AppRoutes from '../../routes';
+import { bootstrap } from '../../data/bootstrap';
+import { createDexieStore } from '../../data/dexie/dexieRepository';
+import { DataProvider } from '../../data/DataProvider';
+import { useUiStore } from '../../state/uiStore';
+import { CloudProvider } from '../../cloud/CloudProvider';
+import { FakeCloudServer } from '../../cloud/__tests__/fakeCloud';
+
+vi.mock('../PdfViewer', () => ({ default: () => null }));
+
+let n = 0;
+const KAWE = { id: 'u-kawe@x.it', email: 'kawe@x.it' };
+
+async function mount(shared: string[]) {
+  const store = createDexieStore({ dbName: `tabs-${++n}` });
+  await bootstrap(store, 'Mine', null, 'en');
+  for (const name of shared) {
+    const b = await store.bands.create({ name });
+    await store.sync.linkBand(b.id);
+  }
+  const server = new FakeCloudServer();
+  render(
+    <MemoryRouter initialEntries={['/']}>
+      <DataProvider store={store}>
+        <CloudProvider api={server.as(KAWE)}>
+          <AppRoutes />
+        </CloudProvider>
+      </DataProvider>
+    </MemoryRouter>,
+  );
+  return store;
+}
+
+const swipe = (el: Element, dx: number) => {
+  fireEvent.touchStart(el, { touches: [{ clientX: 300, clientY: 100 }] });
+  fireEvent.touchEnd(el, { changedTouches: [{ clientX: 300 + dx, clientY: 100 }] });
+};
+
+beforeEach(() => {
+  window.scrollTo = vi.fn();
+  useUiStore.setState({ language: 'en', stageMode: false, activeBandId: null, myInstruments: {} });
+});
+afterEach(cleanup);
+
+describe('home band tabs', () => {
+  it('shows Personal and the shared band, and switches by tap', async () => {
+    await mount(['Wolves']);
+    const personal = await screen.findByRole('tab', { name: /Personal/ });
+    const wolves = screen.getByRole('tab', { name: /Wolves/ });
+    expect(personal.getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(wolves);
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Wolves/ }).getAttribute('aria-selected')).toBe('true'));
+    fireEvent.click(screen.getByRole('tab', { name: /Personal/ }));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'));
+  });
+
+  it('swipes towards the Band tab and back; with several shared bands a second swipe opens the menu', async () => {
+    await mount(['Wolves', 'Owls']);
+    await screen.findByRole('tab', { name: /Personal/ });
+    const main = document.querySelector('main')!;
+
+    swipe(main, -120); // finger moves left: to the shared band
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Wolves/ }).getAttribute('aria-selected')).toBe('true'));
+
+    swipe(document.querySelector('main')!, -120); // once more: the menu of bands
+    const owls = await screen.findByRole('menuitemradio', { name: /Owls/ });
+    fireEvent.click(owls);
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Owls/ }).getAttribute('aria-selected')).toBe('true'));
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    swipe(document.querySelector('main')!, 120); // back to Personal
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'));
+  });
+
+  it('does not show the tabs on a device that cannot share', async () => {
+    const store = createDexieStore({ dbName: `tabs-${++n}` });
+    await bootstrap(store, 'Mine', null, 'en');
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <DataProvider store={store}><CloudProvider api={null}><AppRoutes /></CloudProvider></DataProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Setlists' });
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+});
