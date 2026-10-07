@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Highlight } from '../components/Highlight';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { RemoteFlash } from '../components/RemoteFlash';
@@ -16,7 +16,6 @@ import { useData } from '../data/DataProvider';
 import { useHomeMotion } from '../hooks/useHomeMotion';
 import { useQuery } from '../hooks/useQuery';
 import { useT } from '../i18n';
-import { flyTo } from '../lib/viewTransition';
 
 const letterOf = (text: string): string => {
   const c = text.trim().normalize('NFD').replace(/\p{M}/gu, '').charAt(0).toUpperCase();
@@ -71,7 +70,6 @@ function LetterRail({ letters, onJump }: { letters: string[]; onJump: (letter: s
 
 export default function LibraryPage() {
   const t = useT();
-  const navigate = useNavigate();
   const { store, band } = useData();
   const canEdit = useCanEdit(band.id);
   const root = useRef<HTMLElement>(null);
@@ -272,14 +270,13 @@ export default function LibraryPage() {
                     onContextMenu={(e) => { e.preventDefault(); setMenu(song); }}
                     onClick={(e) => {
                       if (press.current.fired) { press.current.fired = false; e.preventDefault(); return; }
-                      if (flyTo(e.currentTarget.querySelector('[data-vt-from]'), 'song-title', () => navigate(`/song/${song.id}`))) e.preventDefault();
                     }}
                   >
                     <span aria-hidden className="key-disc grid h-11 w-11 shrink-0 place-items-center rounded-full bg-io/10 font-display text-[15px] font-bold text-io">
                       {song.key ? song.key : '♪'}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div data-vt-from className="truncate text-[16.5px] font-semibold leading-tight"><Highlight text={song.title} terms={terms} /></div>
+                      <div className="truncate text-[16.5px] font-semibold leading-tight"><Highlight text={song.title} terms={terms} /></div>
                       <div className="truncate text-[13px] text-soft">
                         {song.artist && <Highlight text={song.artist} terms={terms} />}
                         {song.artist && meta.length > 0 && ' · '}
