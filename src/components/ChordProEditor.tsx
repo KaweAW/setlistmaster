@@ -1,7 +1,7 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { accidentalsForKey, diatonicChords } from '../core/chords';
 import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from '../core/chordsOverWords';
-import { chartStats, insertChord, insertSection, guessSections, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
+import { TAB_TEMPLATES, chartStats, insertChord, insertSection, guessSections, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
 import { useT, type MessageKey } from '../i18n';
 import { ChordChart } from './ChordChart';
 import { Segmented } from './Segmented';
@@ -16,15 +16,16 @@ function highlight(source: string): ReactNode[] {
   });
 }
 
-const SECTIONS: { kind: InsertableKind; label: MessageKey }[] = [
-  { kind: 'intro', label: 'chart.intro' },
-  { kind: 'verse', label: 'chart.verse' },
-  { kind: 'prechorus', label: 'chart.prechorus' },
-  { kind: 'chorus', label: 'chart.chorus' },
-  { kind: 'bridge', label: 'chart.bridge' },
-  { kind: 'instrumental', label: 'chart.instrumental' },
-  { kind: 'outro', label: 'chart.outro' },
-  { kind: 'tab', label: 'chart.tab' },
+const SECTIONS: { id: string; kind: InsertableKind; label: MessageKey; body?: string }[] = [
+  { id: 'intro', kind: 'intro', label: 'chart.intro' },
+  { id: 'verse', kind: 'verse', label: 'chart.verse' },
+  { id: 'prechorus', kind: 'prechorus', label: 'chart.prechorus' },
+  { id: 'chorus', kind: 'chorus', label: 'chart.chorus' },
+  { id: 'bridge', kind: 'bridge', label: 'chart.bridge' },
+  { id: 'instrumental', kind: 'instrumental', label: 'chart.instrumental' },
+  { id: 'outro', kind: 'outro', label: 'chart.outro' },
+  { id: 'tab', kind: 'tab', label: 'chart.tabGuitar', body: TAB_TEMPLATES.guitar },
+  { id: 'tabbass', kind: 'tab', label: 'chart.tabBass', body: TAB_TEMPLATES.bass },
 ];
 
 /**
@@ -107,10 +108,10 @@ export function ChordProEditor({
               label={t('editor.addSection')}
               placeholder={t('editor.addSection')}
               value=""
-              options={SECTIONS.map((x) => ({ value: x.kind, label: t(x.label) }))}
+              options={SECTIONS.map((x) => ({ value: x.id, label: t(x.label) }))}
               onChange={(kind) => {
-                const x = SECTIONS.find((y) => y.kind === kind);
-                if (x) apply(insertSection(value, at(), x.kind, t(x.label)));
+                const x = SECTIONS.find((y) => y.id === kind);
+                if (x) apply(insertSection(value, at(), x.kind, x.body ? t('chart.tab') : t(x.label), x.body));
               }}
               className="shrink-0"
             />

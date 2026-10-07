@@ -195,6 +195,8 @@ export const it: Record<MessageKey, string> = {
   'controls.dismiss': 'Chiudi',
   'controls.close': 'Chiudi controlli di visualizzazione',
   'controls.title': 'Visualizzazione',
+  'chart.tabGuitar': 'Tab (chitarra)',
+  'chart.tabBass': 'Tab (basso)',
   'chart.tab': 'Tablatura',
   'chart.pdfError': 'Impossibile aprire il PDF.',
   'chart.pdfMissing': 'Questo PDF non è ancora arrivato su questo dispositivo.',

@@ -2,6 +2,8 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { transposeChord, type Accidentals } from '../core/chords';
 import { chartSections, type ChartLine, type ParsedChart, type SectionKind } from '../core/chordpro';
 import { calmDevice } from '../hooks/useHomeMotion';
+import { isTabLine } from '../core/chordpro';
+import { TabBlock } from './TabBlock';
 import { elementAtReadingLine } from '../lib/readingLine';
 import { useT, type MessageKey } from '../i18n';
 
@@ -14,6 +16,27 @@ const SECTION_LABELS: Partial<Record<SectionKind, MessageKey>> = {
   bridge: 'chart.bridge',
   tab: 'chart.tab',
 };
+
+const plainText = (line: ChartLine) => (line.kind === 'lyrics' && !line.segments.some((s) => s.chord) ? line.segments.map((s) => s.lyrics).join('') : null);
+
+/** Runs of ASCII tablature written as ordinary lines become one tab block, so tabs look right wherever they were pasted. */
+function groupTabs(lines: ChartLine[]): ChartLine[] {
+  const out: ChartLine[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    let j = i;
+    const run: string[] = [];
+    for (; j < lines.length; j++) {
+      const text = plainText(lines[j]!);
+      if (text === null || !isTabLine(text)) break;
+      run.push(text);
+    }
+    if (run.length >= 3) {
+      out.push({ kind: 'tab', text: run.join('\n') });
+      i = j - 1;
+    } else out.push(lines[i]!);
+  }
+  return out;
+}
 
 /**
  * Chords above the words (Ultimate Guitar style). Each chord sits over the syllable it belongs to;
@@ -58,7 +81,7 @@ export function ChordChart({
           </p>
         );
       case 'tab':
-        return <pre key={index} className="overflow-x-auto font-mono text-[0.75em] leading-tight">{line.text}</pre>;
+        return <TabBlock key={index} text={line.text} />;
       case 'label': {
         const labelKey = SECTION_LABELS[line.section];
         const text = line.text || (labelKey ? t(labelKey) : '');
@@ -135,7 +158,7 @@ export function ChordChart({
           data-kind={section.kind}
           className={`chart-section ${stage ? 'chart-section--stage' : ''}`}
         >
-          {lines.map((line, i) => renderLine(line, section.index * 10_000 + i))}
+          {groupTabs(lines).map((line, i) => renderLine(line, section.index * 10_000 + i))}
         </section>
       ))}
     </div>

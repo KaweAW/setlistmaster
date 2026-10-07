@@ -193,6 +193,8 @@ export const en = {
   'controls.dismiss': 'Dismiss',
   'controls.close': 'Close display controls',
   'controls.title': 'Display',
+  'chart.tabGuitar': 'Tab (guitar)',
+  'chart.tabBass': 'Tab (bass)',
   'chart.tab': 'Tab',
   'chart.pdfError': 'Could not open the PDF.',
   'chart.pdfMissing': 'This PDF has not reached this device yet.',

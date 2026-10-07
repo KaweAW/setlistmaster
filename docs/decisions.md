@@ -432,3 +432,9 @@ and what still has to be tried by hand on real devices.
 ## Phase 20 — One paste, chords and sections
 
 - "Detect sections" and a multi-line paste now do both jobs: text with chords written above the words (`looksLikeChordsOverWords`: bare chord lines and no `[chord]` yet) is first turned into ChordPro, then split into sections by its titles (or guessed). Existing `{…}` lines pass through the converter untouched, so a song that was split earlier but never got its chords placed can be fixed by pressing the button. "Verso/Versi" are recognised as verse titles. The Convert dialog also splits sections now.
+
+## Phase 21 — Chords stand out, tabs, no page-flight animation
+
+- Text with chords above the words is converted when it is **read** (`parseChordPro`), so chords are always drawn as chords (bold, coloured, over their syllable) even in songs saved before the converter existed.
+- **Tabs**: runs of three or more ASCII tab lines are drawn by `TabBlock` wherever they are (inside any section, or in a `{start_of_tab}`): one strip per staff, scrolling sideways instead of wrapping, fret numbers bold and coloured, dashes faded, bar lines and playing marks (h p b / ~) highlighted, an arrow when there is more to the right. The section menu offers "Tab (guitar)" and "Tab (bass)" with a blank staff of six or four strings. Lead and bass parts therefore read as tab rather than as lyrics.
+- The View Transition fly-in (library → song, home → setlist) is removed: the browser froze the screen until the new page had loaded. `lib/viewTransition` is gone.

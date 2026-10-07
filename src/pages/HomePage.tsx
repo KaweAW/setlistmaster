@@ -13,7 +13,6 @@ import { useCanEdit } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
 import { createSetlist, deleteSetlist, duplicateSetlist } from '../data/setlistService';
 import { useMagnetic, useHomeMotion } from '../hooks/useHomeMotion';
-import { flyTo } from '../lib/viewTransition';
 import { useQuery } from '../hooks/useQuery';
 import { resetSwipe, useSwipeDrag } from '../hooks/useSwipeDrag';
 import { useT } from '../i18n';
@@ -199,12 +198,8 @@ function SetlistList() {
           <Link
             to={`/setlist/${s.id}`}
             className="min-h-[56px] min-w-0 flex-1 py-2"
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-              if (flyTo(e.currentTarget.querySelector('[data-vt-from]'), 'setlist-title', () => navigate(`/setlist/${s.id}`))) e.preventDefault();
-            }}
           >
-            <div data-vt-from className="truncate font-display text-xl font-bold uppercase leading-tight tracking-wide">{s.title}</div>
+            <div className="truncate font-display text-xl font-bold uppercase leading-tight tracking-wide">{s.title}</div>
             <div className="truncate text-[13px] text-soft">{meta.join(' · ')}</div>
             {singers.length > 0 && (
               <div className="mt-1.5 flex -space-x-1.5" aria-hidden>
