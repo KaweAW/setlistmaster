@@ -1,5 +1,5 @@
 import { Select } from '../components/Select';
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { formatDuration, parseDuration } from '../core/format';
 import { newId } from '../core/ids';
@@ -9,6 +9,7 @@ import { formatTuningNotes } from '../core/tuning';
 import type { Instrument, Part, Performer, Song, Tuning } from '../core/types';
 import { PartsEditor, TEXT_PART, type PdfInfo, type PendingPdf } from '../components/PartsEditor';
 import { PerformerBadge } from '../components/PerformerBadge';
+import { DurationSlider, KeyPicker, TempoTools } from '../components/SongFormParts';
 import { TuningForm } from '../components/TuningForm';
 import { Button, buttonClass, Field, FieldGroup, inputClass, PageTitle, textareaClass } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
@@ -18,10 +19,67 @@ import { partId } from '../data/instruments';
 import { useQuery } from '../hooks/useQuery';
 import { useT, type MessageKey } from '../i18n';
 
-const KEY_SUGGESTIONS = ['C', 'Cm', 'C#', 'C#m', 'D', 'Dm', 'Eb', 'Ebm', 'E', 'Em', 'F', 'Fm', 'F#', 'F#m', 'G', 'Gm', 'Ab', 'Abm', 'A', 'Am', 'Bb', 'Bbm', 'B', 'Bm'];
 const NEW_TUNING = '__new__';
-const cardTitle = 'font-display text-lg font-bold uppercase tracking-wide';
-const card = 'space-y-4 rounded-lg border border-line bg-surface p-4';
+const card = 'space-y-4 rounded-xl border border-line bg-surface p-4 shadow-sm scroll-mt-28 sm:p-5';
+
+const NAV_ICONS = {
+  basics: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  charts: 'M4 5h16M4 10h16M4 15h10M4 20h7',
+  more: 'M20 12 12 20l-9-9V4h7l10 8ZM7.5 8.5h.01',
+} as const;
+
+/** A card of the form: an icon and a title on a coloured band, then its fields. `id` is what the step bar scrolls to. */
+function FormCard({ id, icon, title, children }: { id: string; icon: keyof typeof NAV_ICONS; title: string; children: ReactNode }) {
+  return (
+    <section id={id} data-form-section className={card}>
+      <h2 className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-wide">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-io/12 text-io">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={NAV_ICONS[icon]} /></svg>
+        </span>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** Sticky step bar: where you are in the form (it follows the scroll), a tap goes there, and a bar shows how much is filled in. */
+function FormSteps({ steps, progress }: { steps: { id: string; label: string }[]; progress: number }) {
+  const t = useT();
+  const [current, setCurrent] = useState(steps[0]!.id);
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setCurrent(e.target.id);
+      },
+      { rootMargin: '-25% 0px -60% 0px' },
+    );
+    document.querySelectorAll('[data-form-section]').forEach((n) => observer.observe(n));
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <nav aria-label={t('form.steps')} className="sticky top-0 z-20 -mx-4 mb-4 border-b border-line bg-paper/90 px-4 pt-2 backdrop-blur">
+      <div className="flex gap-1.5 overflow-x-auto pb-2 [scrollbar-width:none]">
+        {steps.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            aria-current={current === s.id ? 'step' : undefined}
+            onClick={() => document.getElementById(s.id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })}
+            className={`flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold transition-colors ${current === s.id ? 'bg-ink text-paper' : 'bg-surface text-ink ring-1 ring-line'}`}
+          >
+            <span className={`grid h-5 w-5 place-items-center rounded-full text-[11px] ${current === s.id ? 'bg-paper/20' : 'bg-line/70'}`}>{i + 1}</span>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div role="progressbar" aria-label={t('form.progress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} className="-mx-4 h-[3px] bg-line/60">
+        <div className="h-full origin-left bg-gradient-to-r from-lei via-coro to-io transition-transform duration-500 ease-out" style={{ transform: `scaleX(${progress})` }} />
+      </div>
+    </nav>
+  );
+}
 
 export default function SongFormPage() {
   const { songId } = useParams();
@@ -130,6 +188,14 @@ function SongForm({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Dirty: the form as it was when it opened, against now. Progress: how much of the usual is filled in.
+  const snapshot = JSON.stringify([title, artist, key, capo, tuningId, tempo, duration, performerIds, chordpro, instrumentIds, partTexts, notes, tags, tagInput, keptPdfs.map((f) => f.id), newPdfs.map((f) => f.key)]);
+  const [opened] = useState(snapshot);
+  const dirty = snapshot !== opened;
+  const progress =
+    [title.trim(), artist.trim(), key.trim(), tempo.trim(), duration.trim(), performerIds.length > 0 || '', chordpro.trim() || keptPdfs.length > 0 || newPdfs.length > 0 || '']
+      .filter(Boolean).length / 7;
+
   function addTag() {
     const next = normalizeTags([...tags, tagInput]);
     setTags(next);
@@ -181,7 +247,19 @@ function SongForm({
       next.tempo = 'validation.tempo';
     }
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      // Take the person to the first field that needs a look, and shake it once.
+      requestAnimationFrame(() => {
+        const bad = document.querySelector<HTMLElement>('[data-error]');
+        if (!bad) return;
+        bad.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+        bad.classList.remove('field-shake');
+        void bad.offsetWidth;
+        bad.classList.add('field-shake');
+        bad.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true });
+      });
+      return;
+    }
 
     setSaving(true);
     setMessage(null);
@@ -260,9 +338,17 @@ function SongForm({
         <PageTitle>{initial ? t('song.edit') : t('song.new')}</PageTitle>
       </div>
 
+      <FormSteps
+        progress={progress}
+        steps={[
+          { id: 'form-basics', label: t('song.section.basics') },
+          { id: 'form-charts', label: t('part.section') },
+          { id: 'form-more', label: t('song.section.more') },
+        ]}
+      />
+
       <form onSubmit={onSubmit} noValidate className="space-y-5">
-        <section className={card}>
-        <h2 className={cardTitle}>{t('song.section.basics')}</h2>
+        <FormCard id="form-basics" icon="basics" title={t('song.section.basics')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('field.title')} error={errors.title && t(errors.title)}>
             <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoComplete="off" />
@@ -272,13 +358,29 @@ function SongForm({
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label={t('field.key')}>
-            <input className={inputClass} list="key-suggestions" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
-            <datalist id="key-suggestions">
-              {KEY_SUGGESTIONS.map((k) => (<option key={k} value={k} />))}
-            </datalist>
+        <div className="space-y-2">
+          <Field label={t('field.key')} className="max-w-[10rem]">
+            <input className={inputClass} value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
           </Field>
+          <KeyPicker value={key} onChange={setKey} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Field label={t('field.tempo')} error={errors.tempo && t(errors.tempo)}>
+              <input className={inputClass} inputMode="numeric" value={tempo} onChange={(e) => setTempo(e.target.value)} />
+            </Field>
+            <TempoTools tempo={tempo} onTempo={setTempo} />
+          </div>
+          <div>
+            <Field label={t('field.duration')} error={errors.duration && t(errors.duration)}>
+              <input className={inputClass} inputMode="numeric" placeholder="3:45" value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </Field>
+            <DurationSlider value={duration} onChange={setDuration} />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('field.capo')}>
             <Select
               label={t('field.capo')}
@@ -287,15 +389,6 @@ function SongForm({
               options={Array.from({ length: 13 }, (_, n) => ({ value: String(n), label: n === 0 ? t('capo.none') : String(n) }))}
             />
           </Field>
-          <Field label={t('field.tempo')} error={errors.tempo && t(errors.tempo)}>
-            <input className={inputClass} inputMode="numeric" value={tempo} onChange={(e) => setTempo(e.target.value)} />
-          </Field>
-          <Field label={t('field.duration')} error={errors.duration && t(errors.duration)}>
-            <input className={inputClass} inputMode="numeric" placeholder="3:45" value={duration} onChange={(e) => setDuration(e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="space-y-2">
           <Field label={t('field.tuning')}>
             <Select
               label={t('field.tuning')}
@@ -307,10 +400,10 @@ function SongForm({
               ]}
             />
           </Field>
-          {newTuningOpen && (
-            <TuningForm title={t('tuning.newTitle')} onSubmit={createTuning} onCancel={() => setNewTuningOpen(false)} />
-          )}
         </div>
+        {newTuningOpen && (
+          <TuningForm title={t('tuning.newTitle')} onSubmit={createTuning} onCancel={() => setNewTuningOpen(false)} />
+        )}
 
         <FieldGroup legend={t('field.performers')}>
           <div className="flex flex-wrap gap-2">
@@ -322,22 +415,21 @@ function SongForm({
                   type="button"
                   aria-pressed={on}
                   onClick={() => togglePerformer(p.id)}
-                  className={`flex h-11 items-center gap-2 rounded-full border px-3 text-base font-semibold ${
-                    on ? 'border-ink bg-ink text-paper' : 'border-line bg-surface text-ink'
-                  }`}
+                  style={on ? { background: p.color, borderColor: p.color } : { borderColor: `${p.color}88` }}
+                  className={`flex h-11 items-center gap-2 rounded-full border-2 px-3 text-base font-semibold transition-all duration-200 active:scale-95 ${on ? 'scale-[1.04] text-white shadow-md' : 'bg-surface text-ink'}`}
                 >
-                  <PerformerBadge performer={p} size={22} />
+                  <span className={on ? 'rounded-full ring-2 ring-white/70' : ''}><PerformerBadge performer={p} size={22} /></span>
                   {p.name}
                 </button>
               );
             })}
           </div>
         </FieldGroup>
-        </section>
+        </FormCard>
 
-        <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
-          <h2 className={cardTitle}>{t('part.section')}</h2>
+        <FormCard id="form-charts" icon="charts" title={t('part.section')}>
           <PartsEditor
+            songKey={key}
             instruments={instruments}
             ticked={instrumentIds}
             onTick={tick}
@@ -347,10 +439,9 @@ function SongForm({
             hasContent={hasContent}
             pdfs={{ kept: keptPdfs, added: newPdfs, setKept: setKeptPdfs, setAdded: setNewPdfs, onAdd: addPdfs }}
           />
-        </section>
+        </FormCard>
 
-        <section className={card}>
-        <h2 className={cardTitle}>{t('song.section.more')}</h2>
+        <FormCard id="form-more" icon="more" title={t('song.section.more')}>
         <FieldGroup legend={t('field.tags')}>
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface p-2">
             {tags.map((tag) => (
@@ -368,7 +459,6 @@ function SongForm({
             ))}
             <input
               className="h-9 min-w-[10rem] flex-1 bg-transparent px-1 text-base focus:outline-none"
-              list="tag-suggestions"
               placeholder={t('field.tags.add')}
               aria-label={t('field.tags')}
               value={tagInput}
@@ -376,22 +466,38 @@ function SongForm({
               onKeyDown={onTagKeyDown}
               onBlur={() => tagInput.trim() && addTag()}
             />
-            <datalist id="tag-suggestions">
-              {knownTags.filter((k) => !tags.includes(k)).map((k) => (<option key={k} value={k} />))}
-            </datalist>
           </div>
+          {knownTags.filter((k) => !tags.includes(k)).length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-soft">{t('tags.suggested')}</span>
+              {knownTags.filter((k) => !tags.includes(k)).slice(0, 14).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTags(normalizeTags([...tags, k]))}
+                  className="h-8 rounded-full border border-dashed border-line bg-surface px-3 text-sm text-soft transition-all hover:border-io/60 hover:text-ink active:scale-95"
+                >
+                  + {k}
+                </button>
+              ))}
+            </div>
+          )}
         </FieldGroup>
 
         <Field label={t('field.notes')}>
           <textarea className={textareaClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
-        </section>
+        </FormCard>
 
         {message && <p role="alert" className="rounded-md border border-lei/40 bg-lei/5 p-3 text-sm font-semibold text-lei">{message}</p>}
 
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <Button type="submit" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</Button>
           <Button variant="secondary" onClick={goBack}>{t('common.cancel')}</Button>
+          <span role="status" className={`flex items-center gap-2 text-sm font-semibold transition-colors ${dirty ? 'text-lei' : 'text-soft'}`}>
+            <span aria-hidden className={`h-2.5 w-2.5 rounded-full transition-colors ${dirty ? 'dirty-dot bg-lei' : 'bg-line'}`} />
+            {dirty ? t('form.dirty') : t('form.clean')}
+          </span>
           {initial && (
             <Button variant="danger" className="ml-auto" onClick={() => void onDelete()}>{t('common.delete')}</Button>
           )}

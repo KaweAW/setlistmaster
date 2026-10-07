@@ -131,7 +131,7 @@ export function PosterHeader({
   return (
     <header className={`flex items-end justify-between gap-4 border-b-2 border-ink pb-[5mm] ${className}`}>
       <div>
-        <h1 className="font-display text-[46px] font-bold uppercase leading-[0.95] tracking-[0.01em]">{setlist.title}</h1>
+        <h1 data-vt-to="setlist-title" style={{ viewTransitionName: 'setlist-title' }} className="font-display text-[46px] font-bold uppercase leading-[0.95] tracking-[0.01em]">{setlist.title}</h1>
         <p className="mt-1.5 text-[13px] text-soft">{summary}</p>
       </div>
       <Legend legend={legend} />

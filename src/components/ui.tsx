@@ -42,7 +42,7 @@ export function Field({
   className?: string;
 }) {
   return (
-    <label className={`block ${className}`}>
+    <label className={`block ${className}`} {...(error ? { 'data-error': '' } : {})}>
       <span className="mb-1 block text-sm font-semibold text-ink">{label}</span>
       {children}
       {hint && !error && <span className="mt-1 block text-xs text-soft">{hint}</span>}
