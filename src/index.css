@@ -250,6 +250,9 @@
 .chart-section[data-kind='chorus'] { --sec: 107 75 184; }
 .chart-section[data-kind='bridge'] { --sec: var(--c-lei); }
 .chart-section[data-kind='tab'] { --sec: 217 139 0; }
+.chart-section[data-kind='intro'], .chart-section[data-kind='outro'] { --sec: 100 116 139; }
+.chart-section[data-kind='prechorus'] { --sec: 219 39 119; }
+.chart-section[data-kind='instrumental'] { --sec: 13 148 136; }
 .chart-section--stage { margin-top: 1.6em; padding-left: 1.1em; border-left-width: 5px; }
 .chart-section[data-kind='chorus'] { background: linear-gradient(90deg, rgb(var(--sec) / 0.07), transparent 70%); }
 .chart[data-focus] .chart-section:not([data-current]) { opacity: 0.55; }

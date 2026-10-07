@@ -1,9 +1,10 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { accidentalsForKey, diatonicChords } from '../core/chords';
-import { chartStats, insertChord, insertSection, parseChordPro } from '../core/chordpro';
-import { useT } from '../i18n';
+import { chartStats, insertChord, insertSection, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
+import { useT, type MessageKey } from '../i18n';
 import { ChordChart } from './ChordChart';
 import { Segmented } from './Segmented';
+import { Select } from './Select';
 
 /** The text with its ChordPro marks coloured: {directives} in violet, [chords] in the chord colour. Drawn behind a see-through textarea. */
 function highlight(source: string): ReactNode[] {
@@ -14,12 +15,16 @@ function highlight(source: string): ReactNode[] {
   });
 }
 
-const SECTIONS = [
+const SECTIONS: { kind: InsertableKind; label: MessageKey }[] = [
+  { kind: 'intro', label: 'chart.intro' },
   { kind: 'verse', label: 'chart.verse' },
+  { kind: 'prechorus', label: 'chart.prechorus' },
   { kind: 'chorus', label: 'chart.chorus' },
   { kind: 'bridge', label: 'chart.bridge' },
+  { kind: 'instrumental', label: 'chart.instrumental' },
+  { kind: 'outro', label: 'chart.outro' },
   { kind: 'tab', label: 'chart.tab' },
-] as const;
+];
 
 /**
  * A ChordPro editor: coloured marks, one-tap sections and chords of the song's key, a counter, and the sheet itself
@@ -44,6 +49,7 @@ export function ChordProEditor({
   const own = useRef<HTMLTextAreaElement>(null);
   const area = areaRef ?? own;
   const [view, setView] = useState<'write' | 'preview'>('write');
+  const [split, setSplit] = useState<{ before: string; count: number } | null>(null);
   const chart = useMemo(() => parseChordPro(value), [value]);
   const stats = chartStats(value);
   const chords = diatonicChords(songKey);
@@ -63,6 +69,13 @@ export function ChordProEditor({
       area.current?.setSelectionRange(r.cursor, r.cursor);
     });
   }
+  function detect(text: string) {
+    const r = structureSections(text);
+    if (r.count === 0) return false;
+    setSplit({ before: text, count: r.count });
+    onChange(r.text);
+    return true;
+  }
   const at = () => area.current?.selectionStart ?? value.length;
   const chip = 'h-9 shrink-0 rounded-md border border-line bg-surface px-3 text-sm font-semibold transition-transform hover:border-io/60 active:scale-95';
 
@@ -79,14 +92,24 @@ export function ChordProEditor({
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className={view === 'preview' ? 'hidden lg:block' : ''}>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
+        <div className={`min-w-0 ${view === 'preview' ? 'hidden lg:block' : ''}`}>
           <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]" role="toolbar" aria-label={t('editor.insert')}>
-            {SECTIONS.map((x) => (
-              <button key={x.kind} type="button" className={chip} onClick={() => apply(insertSection(value, at(), x.kind, t(x.label)))}>
-                + {t(x.label)}
-              </button>
-            ))}
+            <Select
+              variant="dashed"
+              label={t('editor.addSection')}
+              placeholder={t('editor.addSection')}
+              value=""
+              options={SECTIONS.map((x) => ({ value: x.kind, label: t(x.label) }))}
+              onChange={(kind) => {
+                const x = SECTIONS.find((y) => y.kind === kind);
+                if (x) apply(insertSection(value, at(), x.kind, t(x.label)));
+              }}
+              className="shrink-0"
+            />
+            <button type="button" className={chip} onClick={() => { if (!detect(value)) setSplit({ before: value, count: 0 }); }}>
+              {t('editor.detect')}
+            </button>
             {extra}
           </div>
           {chords.length > 0 && (
@@ -104,6 +127,17 @@ export function ChordProEditor({
               ))}
             </div>
           )}
+          {split && (
+            <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-md bg-io/10 px-3 py-2 text-sm text-ink">
+              <span>{split.count > 0 ? t('editor.detected', { n: split.count }) : t('editor.detectNone')}</span>
+              <span className="flex gap-2">
+                {split.count > 0 && (
+                  <button type="button" className="font-semibold text-io underline" onClick={() => { onChange(split.before); setSplit(null); }}>{t('editor.undo')}</button>
+                )}
+                <button type="button" aria-label={t('controls.dismiss')} className="px-1 text-soft" onClick={() => setSplit(null)}>×</button>
+              </span>
+            </div>
+          )}
           <div className="editor-box relative rounded-md border border-line bg-surface focus-within:border-io focus-within:ring-2 focus-within:ring-io/30">
             <pre aria-hidden className="editor-text pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words">{highlight(value)}{'\n'}</pre>
             <textarea
@@ -112,7 +146,16 @@ export function ChordProEditor({
               rows={minRows}
               spellCheck={false}
               value={value}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => { setSplit(null); onChange(e.target.value); }}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData('text');
+                if (pasted.split('\n').length < 4 || structureSections(pasted).count < 2) return;
+                e.preventDefault();
+                const el = e.currentTarget;
+                const a = el.selectionStart, b = el.selectionEnd;
+                const merged = value.slice(0, a) + pasted + value.slice(b);
+                if (!detect(merged)) onChange(merged);
+              }}
               className="editor-text relative block w-full resize-none overflow-hidden bg-transparent text-transparent caret-ink focus:outline-none"
             />
           </div>
@@ -122,7 +165,7 @@ export function ChordProEditor({
           </div>
         </div>
 
-        <div className={`${view === 'write' ? 'hidden lg:block' : ''}`}>
+        <div className={`min-w-0 ${view === 'write' ? 'hidden lg:block' : ''}`}>
           <div className="rounded-xl border border-line bg-paper/70 p-4 lg:sticky lg:top-16 lg:max-h-[75vh] lg:overflow-y-auto">
             {value.trim() === '' ? (
               <p className="py-8 text-center text-sm text-soft">{t('editor.previewEmpty')}</p>

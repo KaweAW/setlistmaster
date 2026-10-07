@@ -122,11 +122,34 @@ export function SongToolbar(p: SongToolbarProps) {
     clearTimeout(pinTimer.current);
     pinTimer.current = +setTimeout(() => setPinned(false), 7000);
   };
+  const bar = useRef<HTMLDivElement>(null);
+  // The panel folds away on a tap outside the bar or when the reader scrolls the page by hand (not on the auto-scroll).
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: Event) => {
+      const target = e.target as Element;
+      if (target.closest?.('[data-keep-controls]')) return; // the chip that toggles the panel does it itself
+      if (bar.current && !bar.current.contains(target)) setOpen(false);
+    };
+    const touched = (e: Event) => {
+      if (bar.current && !bar.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    window.addEventListener('wheel', touched, { passive: true });
+    window.addEventListener('touchmove', touched, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      window.removeEventListener('wheel', touched);
+      window.removeEventListener('touchmove', touched);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const mini = away && !pinned && !open;
 
   return (
     <>
       <div
+        ref={bar}
         className={`fixed inset-x-0 bottom-0 z-30 rounded-t-2xl bg-chrome text-chrome-ink shadow-[0_-6px_24px_rgba(0,0,0,.28)] transition-transform duration-300 ease-out ${mini ? 'pointer-events-none translate-y-full' : ''}`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         {...(mini ? ({ inert: '' } as object) : {})}
@@ -134,7 +157,11 @@ export function SongToolbar(p: SongToolbarProps) {
         <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] rounded-t-2xl bg-gradient-to-r from-lei via-coro to-io" />
         <div className="mx-auto max-w-3xl px-3 pb-2 pt-3">
           {open && p.showChartControls && (
-            <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 motion-safe:animate-rise-in">
+            <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 motion-safe:animate-rise-in" role="group" aria-label={t('controls.title')}>
+              <div className="col-span-full -mb-1 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-widest text-chrome-ink/70">{t('controls.title')}</span>
+                <button type="button" aria-label={t('controls.close')} onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-lg leading-none hover:bg-white/20">✕</button>
+              </div>
               <Stepper
                 label={t('chart.transpose')}
                 value={signed(p.semitones)}
@@ -183,7 +210,7 @@ export function SongToolbar(p: SongToolbarProps) {
               type="button"
               onClick={p.onTogglePlay}
               aria-pressed={p.playing}
-              className={`h-11 min-w-[7.5rem] rounded-md px-4 text-base font-semibold transition-colors active:scale-[0.97] ${p.playing ? 'bg-lei text-white' : 'bg-chrome-ink text-chrome'}`}
+              className={`h-11 min-w-[7.5rem] whitespace-nowrap rounded-md px-3 text-base font-semibold transition-colors active:scale-[0.97] ${p.playing ? 'bg-lei text-white' : 'bg-chrome-ink text-chrome'}`}
             >
               {p.playing ? `⏸ ${t('chart.pause')}` : `▶ ${t('chart.play')}`}
             </button>

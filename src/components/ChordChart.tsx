@@ -5,7 +5,11 @@ import { calmDevice } from '../hooks/useHomeMotion';
 import { useT, type MessageKey } from '../i18n';
 
 const SECTION_LABELS: Partial<Record<SectionKind, MessageKey>> = {
+  intro: 'chart.intro',
+  prechorus: 'chart.prechorus',
   chorus: 'chart.chorus',
+  instrumental: 'chart.instrumental',
+  outro: 'chart.outro',
   bridge: 'chart.bridge',
   tab: 'chart.tab',
 };

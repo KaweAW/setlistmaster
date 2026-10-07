@@ -8,7 +8,7 @@ export interface ChordSegment {
   lyrics: string;
 }
 
-export type SectionKind = 'verse' | 'chorus' | 'bridge' | 'tab' | 'none';
+export type SectionKind = 'intro' | 'verse' | 'prechorus' | 'chorus' | 'bridge' | 'instrumental' | 'outro' | 'tab' | 'none';
 
 /** Colours of the sticky notes written in the text with `{note: …}` or `{note_pink: …}`. */
 export const NOTE_COLORS = ['yellow', 'pink', 'green', 'blue', 'orange'] as const;
@@ -50,12 +50,32 @@ export interface ParsedChart {
 }
 
 const sectionOf = (name: string): SectionKind => {
-  if (name.includes('chorus')) return 'chorus';
-  if (name.includes('verse')) return 'verse';
-  if (name.includes('bridge')) return 'bridge';
-  if (name.includes('tab')) return 'tab';
+  const n = name.toLowerCase();
+  if (/pre[-_ ]?(chorus|ritornello)/.test(n)) return 'prechorus';
+  if (n.includes('chorus')) return 'chorus';
+  if (n.includes('verse')) return 'verse';
+  if (n.includes('bridge')) return 'bridge';
+  if (n.includes('tab')) return 'tab';
+  if (n.includes('intro')) return 'intro';
+  if (n.includes('outro')) return 'outro';
+  if (/instrumental|solo|interlude/.test(n)) return 'instrumental';
   return 'none';
 };
+
+/** The section a heading such as "Verse 2", "Pre-Chorus", "Ritornello" or "Instrumental Break" stands for (English and Italian), or null. */
+export function sectionKindOfLabel(label: string): InsertableKind | null {
+  const n = label.toLowerCase().replace(/[^a-zàèéìòù ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n) return null;
+  if (/^(pre ?chorus|prechorus|pre ?ritornello|pre ?inciso)\b/.test(n)) return 'prechorus';
+  if (/^(post ?chorus|chorus|ritornello|refrain|hook|inciso)\b/.test(n)) return 'chorus';
+  if (/^(verse|strofa)\b/.test(n)) return 'verse';
+  if (/^(bridge|ponte)\b/.test(n)) return 'bridge';
+  if (/^(intro|introduzione)\b/.test(n)) return 'intro';
+  if (/^(outro|finale|coda|ending|tag)\b/.test(n)) return 'outro';
+  if (/^(solo|assolo|instrumental|strumentale|interlude|interludio|break|riff)\b/.test(n)) return 'instrumental';
+  if (/^tab\b/.test(n)) return 'tab';
+  return null;
+}
 
 type ParsedSong = ReturnType<InstanceType<typeof ChordProParser>['parse']>;
 
@@ -173,17 +193,80 @@ export function chartSections(chart: ParsedChart): { section: ChartSection; line
   return out.filter((x) => x.lines.some((l) => l.kind !== 'blank'));
 }
 
-const kindOfTag = { verse: 'verse', chorus: 'chorus', bridge: 'bridge', tab: 'tab' } as const;
+/** The ChordPro environment name of each kind that can be written by hand. */
+export const SECTION_TAGS = {
+  intro: 'intro', verse: 'verse', prechorus: 'prechorus', chorus: 'chorus', bridge: 'bridge',
+  instrumental: 'instrumental', outro: 'outro', tab: 'tab',
+} as const;
+export type InsertableKind = keyof typeof SECTION_TAGS;
 
 /** Inserts an empty section ({start_of_verse: Verse} … {end_of_verse}) on its own lines at the cursor; the cursor lands inside it. */
-export function insertSection(source: string, cursor: number, kind: keyof typeof kindOfTag, label: string): { text: string; cursor: number } {
+export function insertSection(source: string, cursor: number, kind: InsertableKind, label: string): { text: string; cursor: number } {
   const at = Math.max(0, Math.min(cursor, source.length));
   const lineStart = source.lastIndexOf('\n', at - 1) + 1;
-  const open = `{start_of_${kindOfTag[kind]}${label ? `: ${label}` : ''}}\n`;
-  const close = `{end_of_${kindOfTag[kind]}}\n`;
+  const open = `{start_of_${SECTION_TAGS[kind]}${label ? `: ${label}` : ''}}\n`;
+  const close = `{end_of_${SECTION_TAGS[kind]}}\n`;
   const needsBreak = lineStart < source.length && source.slice(lineStart).trim() !== '' ? '\n' : '';
   const text = `${source.slice(0, lineStart)}${open}\n${close}${needsBreak}${source.slice(lineStart)}`;
   return { text, cursor: lineStart + open.length };
+}
+
+const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
+
+/** The text of a heading line ("[Verse 1]", "Chorus:", "**Bridge**", "## Outro", "{comment: Solo}") or null when the line is something else. */
+function headingOf(line: string): string | null {
+  const trimmed = line.trim();
+  if (!trimmed || /^\{(start|end)_of_/i.test(trimmed)) return null;
+  const comment = /^\{(?:comment|c|ci|cb):\s*([^}]+)\}$/i.exec(trimmed);
+  if (comment) return HEADING_WORD.test(comment[1]!.trim()) ? comment[1]!.trim() : null;
+  if (trimmed.startsWith('{')) return null;
+  const decorated = /^[#*_=\-\s]*(?:\[([^\]]+)\]|\(([^)]+)\)|([^[\](){}]+?))[#*_=\-\s]*:?\s*$/.exec(trimmed);
+  if (!decorated) return null;
+  const bracketed = decorated[1] !== undefined || decorated[2] !== undefined;
+  const text = (decorated[1] ?? decorated[2] ?? decorated[3] ?? '').replace(/[*_#]+/g, '').trim();
+  if (!HEADING_WORD.test(text)) return null;
+  // A bare word is only a heading when it is short ("Verse 2", "Chorus x2") or ends with a colon, so a lyric line is not swallowed.
+  const marked = bracketed || /[*#=]/.test(trimmed) || trimmed.endsWith(':');
+  if (!marked && text.split(/\s+/).length > 3) return null;
+  return text.replace(/\s+/g, ' ');
+}
+
+/**
+ * Splits a text into sections: every heading line ("[Verse 1]", "[Pre-Chorus]", "Chorus:", "{comment: Solo}") opens a
+ * {start_of_…: Label} block that ends before the next heading. Text that already uses blocks is left as it is.
+ */
+export function structureSections(source: string): { text: string; count: number } {
+  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  const out: string[] = [];
+  let open: string | null = null;
+  let count = 0;
+  const close = () => {
+    if (open === null) return;
+    let trailing = 0;
+    while (out.length > 0 && out[out.length - 1]!.trim() === '') { out.pop(); trailing++; }
+    out.push(`{end_of_${open}}`);
+    for (let i = 0; i < Math.max(1, trailing); i++) out.push('');
+    open = null;
+  };
+  for (const line of lines) {
+    const heading = headingOf(line);
+    const kind = heading ? sectionKindOfLabel(heading) : null;
+    if (heading && kind) {
+      close();
+      const tag = SECTION_TAGS[kind];
+      out.push(`{start_of_${tag}: ${heading}}`);
+      open = tag;
+      count++;
+    } else if (open !== null && /^\s*\{end_of_/i.test(line)) {
+      // an explicit end of a block we opened: keep a single close
+      close();
+    } else {
+      out.push(line);
+    }
+  }
+  close();
+  while (out.length > 0 && out[out.length - 1]!.trim() === '') out.pop();
+  return { text: count > 0 ? `${out.join('\n')}\n` : source, count };
 }
 
 /** Puts `[chord]` at the cursor, replacing a selection. */
