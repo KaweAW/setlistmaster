@@ -1,52 +1,41 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useCloud } from '../cloud/CloudProvider';
 import { errorMessageKey } from '../cloud/errors';
 import type { CloudRole, InviteRole, RemoteInvitation, RemoteMember } from '../cloud/types';
-import { useData } from '../data/DataProvider';
 import { useQuery } from '../hooks/useQuery';
 import { useT } from '../i18n';
-import { useUiStore } from '../state/uiStore';
 import type { BandSyncStatus } from '../sync/engine';
-import { AuthForm } from './AuthForm';
 import { SectionTitle } from './SettingsData';
-import { Button, Field, inputClass } from './ui';
+import { Button, buttonClass, Field, inputClass } from './ui';
 
 /** The link a person opens to join: the app itself, on its /join page. */
 export const inviteLink = (token: string) => `${window.location.origin}/join/${token}`;
 
-const roleKey = (role: CloudRole) => `cloud.role.${role}` as const;
+export const roleKey = (role: CloudRole) => `cloud.role.${role}` as const;
 
+/** In Settings: who is signed in, and the way to the page where bands are managed. */
 export function CloudSection() {
   const t = useT();
   const cloud = useCloud();
-  const { band } = useData();
   return (
     <section>
       <SectionTitle>{t('cloud.title')}</SectionTitle>
       {!cloud.configured ? (
         <p className="text-sm text-soft">{t('cloud.off')}</p>
-      ) : cloud.user === undefined ? (
-        <p className="text-sm text-soft">{t('app.loading')}</p>
-      ) : cloud.user === null ? (
-        <div className="space-y-3">
-          <p className="text-sm text-soft">{t('cloud.intro')}</p>
-          <AuthForm />
-        </div>
       ) : (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="min-w-0 flex-1 break-all text-sm font-semibold">{t('cloud.signedInAs', { email: cloud.user.email })}</p>
-            <Button variant="secondary" onClick={() => void cloud.api?.signOut()}>{t('cloud.signOut')}</Button>
-          </div>
-          <BandCloud bandId={band.id} />
-          <BandsOnDevice />
+        <div className="space-y-3">
+          <p className="text-sm text-soft">
+            {cloud.user ? t('cloud.signedInAs', { email: cloud.user.email }) : t('cloud.intro')}
+          </p>
+          <Link to="/bands" className={buttonClass('secondary')}>{cloud.user ? t('bands.manage') : t('cloud.signIn')} →</Link>
         </div>
       )}
     </section>
   );
 }
 
-function StatusLine({ status }: { status: BandSyncStatus | undefined }) {
+export function StatusLine({ status }: { status: BandSyncStatus | undefined }) {
   const t = useT();
   if (!status) return null;
   const tone = status.state === 'idle' ? 'text-io' : status.state === 'syncing' ? 'text-soft' : 'text-lei';
@@ -59,68 +48,7 @@ function StatusLine({ status }: { status: BandSyncStatus | undefined }) {
   );
 }
 
-function BandCloud({ bandId }: { bandId: string }) {
-  const t = useT();
-  const cloud = useCloud();
-  const { band } = useData();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const linked = cloud.linked.has(bandId);
-  const role = cloud.roles[bandId] ?? null;
-  const status = cloud.statuses[bandId];
-
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-    } catch (e) {
-      setError(t(errorMessageKey(e)));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!linked) {
-    return (
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">{t('cloud.notShared')}</p>
-        <p className="text-sm text-soft">{t('cloud.shareHint')}</p>
-        <Button disabled={busy} onClick={() => void run(() => cloud.share(band))}>{t('cloud.share')}</Button>
-        {error && <p role="alert" className="text-sm font-semibold text-lei">{error}</p>}
-      </div>
-    );
-  }
-
-  const revoked = status?.state === 'revoked' || (cloud.roles[bandId] === null && bandId in cloud.roles);
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <p className="text-sm font-semibold">{t('cloud.shared')}{role && ` · ${t('cloud.yourRole', { role: t(roleKey(role)) })}`}</p>
-        {role && <p className="text-sm text-soft">{t(`cloud.roleHint.${role}`)}</p>}
-        <StatusLine status={status} />
-        {revoked && <p className="text-sm text-soft">{t('cloud.revokedHint')}</p>}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {!revoked && <Button variant="secondary" disabled={busy} onClick={() => void cloud.syncNow(bandId)}>{t('cloud.syncNow')}</Button>}
-        {(role === 'editor' || role === 'viewer') && !revoked && (
-          <Button variant="danger" disabled={busy} onClick={() => {
-            if (window.confirm(t('cloud.leaveConfirm'))) void run(async () => { await cloud.api?.leaveBand(bandId); await cloud.unlink(bandId); });
-          }}>{t('cloud.leave')}</Button>
-        )}
-        {(role === 'creator' || revoked) && (
-          <Button variant="secondary" disabled={busy} onClick={() => {
-            if (window.confirm(t('cloud.unlinkConfirm'))) void run(() => cloud.unlink(bandId));
-          }}>{t('cloud.unlink')}</Button>
-        )}
-      </div>
-      {error && <p role="alert" className="text-sm font-semibold text-lei">{error}</p>}
-      {!revoked && <Members bandId={bandId} role={role} />}
-    </div>
-  );
-}
-
-function Members({ bandId, role }: { bandId: string; role: CloudRole | null }) {
+export function Members({ bandId, bandName, role }: { bandId: string; bandName: string; role: CloudRole | null }) {
   const t = useT();
   const cloud = useCloud();
   const api = cloud.api!;
@@ -175,6 +103,7 @@ function Members({ bandId, role }: { bandId: string; role: CloudRole | null }) {
       {isCreator && (
         <InviteForm
           bandId={bandId}
+          bandName={bandName}
           open={(invites.data ?? []).filter((i) => i.open)}
           onChanged={() => invites.reload()}
         />
@@ -183,10 +112,9 @@ function Members({ bandId, role }: { bandId: string; role: CloudRole | null }) {
   );
 }
 
-function InviteForm({ bandId, open, onChanged }: { bandId: string; open: RemoteInvitation[]; onChanged: () => void }) {
+export function InviteForm({ bandId, bandName, open, onChanged }: { bandId: string; bandName: string; open: RemoteInvitation[]; onChanged: () => void }) {
   const t = useT();
   const { api } = useCloud();
-  const { band } = useData();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<InviteRole>('editor');
   const [created, setCreated] = useState<{ link: string; email: string } | null>(null);
@@ -213,7 +141,7 @@ function InviteForm({ bandId, open, onChanged }: { bandId: string; open: RemoteI
     }
   }
   const mail = (link: string, to: string) =>
-    `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(t('cloud.mailSubject', { band: band.name }))}&body=${encodeURIComponent(t('cloud.mailBody', { link }))}`;
+    `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(t('cloud.mailSubject', { band: bandName }))}&body=${encodeURIComponent(t('cloud.mailBody', { link }))}`;
 
   return (
     <div className="space-y-3 rounded-lg border border-line bg-surface p-3">
@@ -257,35 +185,6 @@ function InviteForm({ bandId, open, onChanged }: { bandId: string; open: RemoteI
           </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-/** A device can hold its own band and the ones it joined: pick which one the app shows. */
-function BandsOnDevice() {
-  const t = useT();
-  const { store, band } = useData();
-  const cloud = useCloud();
-  const setActive = useUiStore((s) => s.setActiveBandId);
-  const bands = useQuery(() => store.bands.listAll(), [store]);
-  if (!bands.data || bands.data.length < 2) return null;
-  return (
-    <div>
-      <h3 className="mb-2 font-display text-lg font-bold uppercase tracking-wide">{t('cloud.bands')}</h3>
-      <ul className="divide-y divide-line border-y border-line">
-        {bands.data.map((b) => (
-          <li key={b.id} className="flex min-h-[44px] items-center gap-2 py-2">
-            <span className="flex-1 text-base font-semibold">
-              {b.name} <span className="text-sm font-normal text-soft">· {cloud.linked.has(b.id) ? t('cloud.shared') : t('cloud.localBand')}</span>
-            </span>
-            {b.id === band.id ? (
-              <span className="text-sm font-semibold text-io">{t('cloud.activeBand')}</span>
-            ) : (
-              <Button variant="secondary" onClick={() => setActive(b.id)}>{t('cloud.useBand')}</Button>
-            )}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

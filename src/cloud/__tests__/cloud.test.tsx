@@ -30,6 +30,15 @@ function mount(path: string, api: CloudApi | null, store = createDexieStore({ db
   return store;
 }
 
+/** A device with one local band, not shared yet. */
+async function localDevice() {
+  const store = createDexieStore({ dbName: `cloud-${++n}` });
+  await bootstrap(store);
+  const band = (await store.bands.listAll())[0]!;
+  useUiStore.setState({ activeBandId: band.id });
+  return store;
+}
+
 beforeEach(() => {
   window.scrollTo = vi.fn();
   useUiStore.setState({ language: 'en', stageMode: false, activeBandId: null, myInstruments: {} });
@@ -44,16 +53,17 @@ describe('sharing screen', () => {
 
   it('asks to sign in when signed out', async () => {
     const server = new FakeCloudServer();
-    mount('/settings', server.as(null));
+    mount('/bands', server.as(null));
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeTruthy();
   });
 
   it('shares the band, then lets the creator invite by link and see the member list', async () => {
     const server = new FakeCloudServer();
-    const store = mount('/settings', server.as(KAWE));
+    const store = await localDevice();
+    const band = (await store.bands.listAll())[0]!;
+    mount(`/bands/${band.id}`, server.as(KAWE), store);
     fireEvent.click(await screen.findByRole('button', { name: 'Share this band' }));
     expect(await screen.findByText(/Your role: creator/)).toBeTruthy();
-    const band = (await store.bands.listAll())[0]!;
     expect(await store.sync.linkedBands()).toEqual([band.id]);
     await waitFor(() => expect(server.remote.rows.size).toBeGreaterThan(50)); // songs, setlist… went up
     expect(await screen.findByText(KAWE.email)).toBeTruthy();
@@ -76,7 +86,7 @@ describe('sharing screen', () => {
     useUiStore.setState({ activeBandId: 'b1' });
     const alex = server.as(ALEX);
     await alex.acceptInvitation('tok1');
-    mount('/settings', alex, store);
+    mount('/bands/b1', alex, store);
     expect(await screen.findByText(/Your role: editor/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Create invitation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
@@ -86,10 +96,13 @@ describe('sharing screen', () => {
 describe('the instrument I play', () => {
   it('is kept on my account, and a new device learns it', async () => {
     const server = new FakeCloudServer();
-    const store = mount('/settings', server.as(KAWE));
+    const store = await localDevice();
+    const band = (await store.bands.listAll())[0]!;
+    mount(`/bands/${band.id}`, server.as(KAWE), store);
     fireEvent.click(await screen.findByRole('button', { name: 'Share this band' }));
     await screen.findByText(/Your role: creator/);
-    const band = (await store.bands.listAll())[0]!;
+    cleanup();
+    mount('/settings', server.as(KAWE), store);
     const bass = (await store.instruments.listBy('bandId', band.id)).find((i) => i.name === 'Bass')!;
     fireEvent.change(await screen.findByLabelText('The instrument I play'), { target: { value: bass.id } });
     await waitFor(() => expect(server.instruments.get(`${band.id}:${KAWE.id}`)).toBe(bass.id));
@@ -195,5 +208,88 @@ describe('read-only viewers', () => {
     mount(`/setlist/${setlist.id}`, alex, store);
     await screen.findByText('Night');
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+});
+
+describe('band management', () => {
+  /** KAWE shares a band; ALEX joins it. Returns both devices' world. */
+  async function shared() {
+    const server = new FakeCloudServer();
+    const store = await localDevice();
+    const band = (await store.bands.listAll())[0]!;
+    return { server, store, band };
+  }
+
+  it('lists owned, joined and local-only bands separately', async () => {
+    const server = new FakeCloudServer();
+    const alexApi = server.as(ALEX);
+    await alexApi.createBand('theirs', 'Their band');
+    await alexApi.createInvitation('theirs', 'editor');
+    await server.as(KAWE).acceptInvitation('tok1');
+    await server.as(KAWE).createBand('mine', 'My shared band');
+    const store = await localDevice();
+    mount('/bands', server.as(KAWE), store);
+    expect(await screen.findByText('Your bands')).toBeTruthy();
+    expect(await screen.findByText('My shared band')).toBeTruthy();
+    expect(await screen.findByText('Their band')).toBeTruthy();
+    expect(screen.getByText('Bands you are in')).toBeTruthy();
+    expect(screen.getByText('Only on this device')).toBeTruthy();
+  });
+
+  it('renames the band and saves its notes', async () => {
+    const { server, store, band } = await shared();
+    mount(`/bands/${band.id}`, server.as(KAWE), store);
+    const name = (await screen.findByLabelText('Band name')) as HTMLInputElement;
+    fireEvent.change(name, { target: { value: 'The Rockets' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () => expect((await store.bands.listAll())[0]!.name).toBe('The Rockets'));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit notes' }));
+    fireEvent.change(await within(await screen.findByRole('dialog')).findByRole('textbox'), { target: { value: 'Rehearsals on Tuesday' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
+    await waitFor(async () => {
+      const b = (await store.bands.listAll())[0]!;
+      expect(b.name).toBe('The Rockets');
+      expect(b.notes).toBe('Rehearsals on Tuesday');
+    });
+  });
+
+  it('only deletes after typing the exact name, tells the members, and removes the band', async () => {
+    const server = new FakeCloudServer();
+    const store = await localDevice();
+    const band = (await store.bands.listAll())[0]!;
+    const kawe = server.as(KAWE);
+    await kawe.createBand(band.id, band.name);
+    await kawe.createInvitation(band.id, 'editor');
+    await store.sync.linkBand(band.id);
+    await server.as(ALEX).acceptInvitation('tok1');
+    mount(`/bands/${band.id}`, kawe, store);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete this band…' }));
+    const go = (await screen.findByRole('button', { name: 'Delete for everyone' })) as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    expect(await screen.findByText(/The 1 other members will be told/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Type the band name to confirm'), { target: { value: band.name } });
+    expect(go.disabled).toBe(false);
+    fireEvent.click(go);
+    await waitFor(() => expect(server.notices.filter((x) => x.userId === ALEX.id)).toHaveLength(1));
+    expect(server.notices[0]!.bandName).toBe(band.name);
+  });
+
+  it('shows a deleted-band notice to a member, who keeps a local copy', async () => {
+    const server = new FakeCloudServer();
+    const kawe = server.as(KAWE);
+    await kawe.createBand('b1', 'Band');
+    await kawe.createInvitation('b1', 'editor');
+    const store = createDexieStore({ dbName: `cloud-${++n}` });
+    await bootstrap(store);
+    await store.bands.create({ id: 'b1', name: 'Band' });
+    await store.sync.linkBand('b1');
+    useUiStore.setState({ activeBandId: 'b1' });
+    const alex = server.as(ALEX);
+    await alex.acceptInvitation('tok1');
+    await kawe.deleteBand('b1');
+    mount('/', alex, store);
+    expect(await screen.findByText(/deleted the band “Band”/)).toBeTruthy();
+    expect(await store.sync.linkedBands()).toEqual([]);
+    expect((await store.bands.listAll()).some((b) => b.id === 'b1')).toBe(true);
   });
 });

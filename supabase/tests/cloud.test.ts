@@ -189,6 +189,43 @@ describe('what only the creator can do', () => {
   });
 });
 
+describe('band management', () => {
+  it('lets only the creator rename the band and write its notes', async () => {
+    await join(bob, 'editor');
+    await rows(alice, 'select public.update_band($1, $2, $3)', [bandId, '  New name ', 'Rehearsal: Tuesday']);
+    expect(await rows(bob, 'select name, notes from public.bands where id = $1', [bandId])).toEqual([{ name: 'New name', notes: 'Rehearsal: Tuesday' }]);
+    await expect(rows(bob, 'select public.update_band($1, $2, $3)', [bandId, 'Mine', ''])).rejects.toThrow();
+    await expect(rows(alice, 'select public.update_band($1, $2, $3)', [bandId, '   ', ''])).rejects.toThrow();
+    await expect(rows(alice, 'select public.update_band($1, $2, $3)', [bandId, 'X', 'x'.repeat(4001)])).rejects.toThrow();
+  });
+
+  it('deletes the band with everything in it, and tells the other members only', async () => {
+    await join(bob, 'editor');
+    await join(carol, 'viewer');
+    await upsert(alice, [rec('song', await uuid(db), 1, { title: 'Zombie' })]);
+    await expect(rows(bob, 'select public.delete_band($1)', [bandId])).rejects.toThrow();
+    expect((await rows<{ delete_band: number }>(alice, 'select public.delete_band($1)', [bandId]))[0]!.delete_band).toBe(2);
+
+    expect(await rows(alice, 'select 1 from public.bands')).toHaveLength(0);
+    expect(await rows(bob, 'select 1 from public.records')).toHaveLength(0);
+    expect(await rows(alice, 'select 1 from public.notices')).toHaveLength(0);
+    const told = await rows<{ band_name: string; by_email: string; kind: string }>(bob, 'select kind, band_name, by_email from public.notices');
+    expect(told).toEqual([{ kind: 'band_deleted', band_name: 'The Band', by_email: alice.email }]);
+    expect(await rows(carol, 'select 1 from public.notices')).toHaveLength(1);
+  });
+
+  it('shows each person only their own notices, and lets them dismiss them', async () => {
+    await join(bob, 'editor');
+    await rows(alice, 'select public.delete_band($1)', [bandId]);
+    const [notice] = await rows<{ id: string }>(bob, 'select id from public.notices');
+    expect(await rows(carol, 'select 1 from public.notices')).toHaveLength(0);
+    await rows(carol, 'select public.dismiss_notice($1)', [notice!.id]); // not hers: nothing happens
+    expect(await rows(bob, 'select 1 from public.notices')).toHaveLength(1);
+    await rows(bob, 'select public.dismiss_notice($1)', [notice!.id]);
+    expect(await rows(bob, 'select 1 from public.notices')).toHaveLength(0);
+  });
+});
+
 describe('instruments', () => {
   it('syncs instruments and parts like any other record', async () => {
     const instrument = await uuid(db);

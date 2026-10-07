@@ -81,6 +81,13 @@ export function NoticeBar() {
       actions: <Link to="/settings" className={`${buttonClass('primary')} ${small}`}>{t('notice.revokedAction')}</Link>,
     });
   }
+  const deleted = cloud.notices.find((n) => n.kind === 'band_deleted');
+  if (deleted) {
+    pending.push({
+      id: `deleted-${deleted.id}`, tone: 'alert', text: t('notice.bandDeleted', { by: deleted.byEmail || '—', band: deleted.bandName }),
+      actions: <Button variant="secondary" className={small} onClick={() => void cloud.dismissNotice(deleted.id)}>{t('notice.ok')}</Button>,
+    });
+  }
   if ((persistence === 'denied' || persistence === 'unsupported') && !storageDismissed) {
     pending.push({
       id: 'storage', tone: 'warn', text: t('notice.storage'),

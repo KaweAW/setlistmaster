@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 
 // Every migration, in order: the database under test is the one a real project ends up with.
-const migrations = ['0001_cloud.sql', '0002_instruments.sql', '0003_pdf_storage.sql'].map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
+const migrations = ['0001_cloud.sql', '0002_instruments.sql', '0003_pdf_storage.sql', '0004_band_management.sql'].map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 
 export interface User {
   id: string;

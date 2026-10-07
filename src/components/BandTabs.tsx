@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { groupBands } from '../core/bandTabs';
 import { useCloud } from '../cloud/CloudProvider';
 import { useData } from '../data/DataProvider';
-import { addDefaultInstruments } from '../data/instruments';
+import { ensurePersonalBand } from '../data/bands';
 import { useQuery } from '../hooks/useQuery';
 import { useT } from '../i18n';
 import { rememberSlide } from '../state/bandSlide';
@@ -41,7 +41,6 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
   const bands = useQuery(() => store.bands.listAll(), [store, cloud.linked]);
   const [menu, setMenu] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
-  const creating = useRef(false);
 
   const { personal, shared } = groupBands(bands.data ?? [], cloud.linked);
   const onShared = shared.some((b) => b.id === band.id);
@@ -51,20 +50,15 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
 
   // The personal space must always exist, even when the first band was shared: make an empty one.
   useEffect(() => {
-    if (!cloud.configured || !bands.data || personal || creating.current) return;
-    creating.current = true;
-    void (async () => {
-      const created = await store.bands.create({ name: t('tabs.personal') });
-      await addDefaultInstruments(store, created.id, language);
-      bands.reload();
-    })().finally(() => { creating.current = false; });
+    if (!cloud.configured || !bands.data || personal) return;
+    void ensurePersonalBand(store, t('tabs.personal'), language).then((made) => made && bands.reload());
   }, [cloud.configured, bands, personal, store, t, language]);
 
   const goShared = () => {
     if (onShared) return setMenu(hasSharedChoice ? !menu : false);
     const target = shared[0];
     if (target) { rememberSlide('right'); setActive(target.id); }
-    else navigate('/settings'); // nothing shared yet: the settings explain how to share or join
+    else navigate('/bands'); // nothing shared yet: the bands page explains how to share or join
   };
   const goPersonal = () => { setMenu(false); if (personal && band.id !== personal.id) { rememberSlide('left'); setActive(personal.id); } };
 
@@ -151,6 +145,11 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
               </button>
             </li>
           ))}
+          <li role="none" className="border-t border-line pt-1">
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); navigate('/bands'); }} className="flex h-11 w-full items-center rounded-md px-3 text-left text-sm font-semibold text-io hover:bg-line/40">
+              {t('bands.manage')} →
+            </button>
+          </li>
         </ul>
       )}
     </div>

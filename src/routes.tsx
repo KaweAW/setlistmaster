@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import AppShell from './components/AppShell';
+import BandPage from './pages/BandPage';
+import BandsPage from './pages/BandsPage';
 import LibraryPage from './pages/LibraryPage';
 import HomePage from './pages/HomePage';
 import JoinPage from './pages/JoinPage';
@@ -33,6 +35,8 @@ export default function AppRoutes() {
         <Route path="/library/new" element={<SongFormPage />} />
         <Route path="/library/:songId" element={<SongFormPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="/bands" element={<BandsPage />} />
+        <Route path="/bands/:bandId" element={<BandPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>
