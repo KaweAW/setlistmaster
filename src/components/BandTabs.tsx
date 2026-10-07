@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { groupBands } from '../core/bandTabs';
 import { useCloud } from '../cloud/CloudProvider';
@@ -130,9 +130,9 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
       </div>
 
       {menu && (
-        <ul role="menu" className="slide-open absolute inset-x-0 top-full z-20 mt-1 rounded-lg border border-line bg-surface p-1 shadow-lg">
-          {shared.map((b) => (
-            <li key={b.id} role="none">
+        <ul role="menu" className="band-menu absolute inset-x-0 top-full z-20 mt-1 rounded-lg border border-line bg-surface p-1 shadow-lg">
+          {shared.map((b, i) => (
+            <li key={b.id} role="none" style={{ '--i': i } as CSSProperties}>
               <button
                 type="button"
                 role="menuitemradio"
@@ -145,7 +145,7 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
               </button>
             </li>
           ))}
-          <li role="none" className="border-t border-line pt-1">
+          <li role="none" style={{ '--i': shared.length } as CSSProperties} className="sticky bottom-0 border-t border-line bg-surface pt-1">
             <button type="button" role="menuitem" onClick={() => { setMenu(false); navigate('/bands'); }} className="flex h-11 w-full items-center rounded-md px-3 text-left text-sm font-semibold text-io hover:bg-line/40">
               {t('bands.manage')} →
             </button>

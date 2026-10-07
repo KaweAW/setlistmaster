@@ -1,3 +1,4 @@
+import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from './chordsOverWords';
 import ChordSheetJS from 'chordsheetjs';
 
 const { ChordProParser, ChordLyricsPair, Tag, Comment, Literal } = ChordSheetJS;
@@ -144,7 +145,8 @@ function tidyBlanks(lines: ChartLine[]): ChartLine[] {
  */
 export function parseChordPro(text: string): ParsedChart {
   try {
-    return build(new ChordProParser().parse(text));
+    // Text pasted in the "chords above the words" layout is shown properly without anyone converting it first.
+    return build(new ChordProParser().parse(looksLikeChordsOverWords(text) ? chordsOverWordsToChordPro(text) : text));
   } catch {
     const lines: ChartLine[] = [];
     for (const raw of text.split(/\r?\n/)) {
@@ -201,15 +203,25 @@ export const SECTION_TAGS = {
 export type InsertableKind = keyof typeof SECTION_TAGS;
 
 /** Inserts an empty section ({start_of_verse: Verse} … {end_of_verse}) on its own lines at the cursor; the cursor lands inside it. */
-export function insertSection(source: string, cursor: number, kind: InsertableKind, label: string): { text: string; cursor: number } {
+export function insertSection(source: string, cursor: number, kind: InsertableKind, label: string, body = ''): { text: string; cursor: number } {
   const at = Math.max(0, Math.min(cursor, source.length));
   const lineStart = source.lastIndexOf('\n', at - 1) + 1;
   const open = `{start_of_${SECTION_TAGS[kind]}${label ? `: ${label}` : ''}}\n`;
   const close = `{end_of_${SECTION_TAGS[kind]}}\n`;
   const needsBreak = lineStart < source.length && source.slice(lineStart).trim() !== '' ? '\n' : '';
-  const text = `${source.slice(0, lineStart)}${open}\n${close}${needsBreak}${source.slice(lineStart)}`;
-  return { text, cursor: lineStart + open.length };
+  const text = `${source.slice(0, lineStart)}${open}${body ? `${body}\n` : '\n'}${close}${needsBreak}${source.slice(lineStart)}`;
+  return { text, cursor: lineStart + open.length + (body ? body.indexOf('|') + 1 : 0) };
 }
+
+/** Blank staves for the "Tab" menu entries: six strings for a guitar, four for a bass. */
+export const TAB_TEMPLATES = {
+  guitar: ['e|--------------------------------|', 'B|--------------------------------|', 'G|--------------------------------|', 'D|--------------------------------|', 'A|--------------------------------|', 'E|--------------------------------|'].join('\n'),
+  bass: ['G|--------------------------------|', 'D|--------------------------------|', 'A|--------------------------------|', 'E|--------------------------------|'].join('\n'),
+} as const;
+
+/** A line of ASCII tablature: a string name, a bar line, and fret numbers, dashes and playing marks. */
+export const TAB_LINE = /^\s*[A-Ga-g][#b♯♭]?\s*[|:]?[-\d|hpbrx/\\~^()\s.*vt<>=sS]{8,}$/;
+export const isTabLine = (line: string): boolean => TAB_LINE.test(line) && (line.match(/-/g) ?? []).length >= 4;
 
 const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|verso|versi|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
 

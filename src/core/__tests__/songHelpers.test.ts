@@ -114,3 +114,24 @@ describe('chords over words with sections', () => {
     expect(kept).toBe('{start_of_verse: Verse 1}\n[Em]hello[G] there\n{end_of_verse}');
   });
 });
+
+describe('tabs and bare chords', () => {
+  it('recognises lines of ASCII tablature', async () => {
+    const { isTabLine } = await import('../chordpro');
+    expect(isTabLine('e|---0---3-----|--5h7--|')).toBe(true);
+    expect(isTabLine('G|-----------------|')).toBe(true);
+    expect(isTabLine('And we have crashed her party')).toBe(false);
+    expect(isTabLine('A - B - C')).toBe(false);
+  });
+  it('shows chords written above the words as chords', async () => {
+    const { parseChordPro } = await import('../chordpro');
+    const chart = parseChordPro('Am     D/F\nKarma Police\nEm      G\nArrest this man\n');
+    const line = chart.lines.find((l) => l.kind === 'lyrics') as { segments: { chord: string | null }[] };
+    expect(line.segments.map((s) => s.chord).filter(Boolean)).toEqual(['Am', 'D/F']);
+  });
+  it('puts a staff template in a tab section', async () => {
+    const { insertSection, TAB_TEMPLATES } = await import('../chordpro');
+    const r = insertSection('', 0, 'tab', 'Tab', TAB_TEMPLATES.bass);
+    expect(r.text).toBe(`{start_of_tab: Tab}\n${TAB_TEMPLATES.bass}\n{end_of_tab}\n`);
+  });
+});
