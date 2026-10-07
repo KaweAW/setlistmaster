@@ -161,6 +161,16 @@ describe('the song form', () => {
     expect(area.value.startsWith('[Intro]')).toBe(true);
   });
 
+  it('places chords written above the words and splits sections in one go', async () => {
+    await setup(() => '/library/new');
+    const area = (await screen.findByLabelText(/Lyrics and chords/)) as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: 'Verso 1\nAm      F\nKarma police\n\nChorus\nEm\nla la' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Detect sections' }));
+    expect(area.value).toContain('{start_of_verse: Verso 1}');
+    expect(area.value).toContain('[Am]Karma');
+    expect(screen.getByText(/Chords placed over the words/)).toBeTruthy();
+  });
+
   it('colours the marks behind the text', async () => {
     await setup(({ songId }) => `/library/${songId}`, { chordpro: '{c: hi}\n[Am]word' });
     await screen.findByLabelText(/Lyrics and chords/);

@@ -7,10 +7,11 @@ import { isChord } from './chords';
  */
 const SECTION_WORDS =
   'intro|verse|chorus|pre-?chorus|post-?chorus|bridge|outro|solo|interlude|instrumental|refrain|hook|coda|tag|break|riff|' +
-  'strofa|ritornello|inciso|ponte|finale|introduzione|assolo|ripresa';
+  'strofa|verso|versi|ritornello|inciso|ponte|finale|introduzione|assolo|ripresa';
 const SECTION_ONLY = new RegExp(`^\\s*[\\[(]?\\s*(?:${SECTION_WORDS})\\b[^\\]\\n):]*[\\])]?\\s*:?\\s*$`, 'i');
 const SECTION_THEN_CHORDS = new RegExp(`^\\s*[\\[(]?\\s*((?:${SECTION_WORDS})\\b[^\\]\\n):]*)[\\])]?\\s*:\\s*(\\S.*)$`, 'i');
 const BRACKET_LABEL = /^\s*\[([^\]]+)\]\s*:?\s*$/;
+const DIRECTIVE = /^\s*\{[^}]*\}\s*$/;
 const FILLER = /^(\||\|\||\/|-|%|x\d+|\(x\d+\)|\(?x\d+\)?)$/i;
 const NO_CHORD = /^N\.?C\.?$/i;
 
@@ -60,6 +61,11 @@ export function chordsOverWordsToChordPro(input: string): string {
       continue;
     }
 
+    if (DIRECTIVE.test(line)) {
+      out.push(line.trim()); // already ChordPro ({start_of_verse}, {comment: …}): left as it is
+      continue;
+    }
+
     const labelWithChords = SECTION_THEN_CHORDS.exec(line);
     if (labelWithChords && isChordLine(labelWithChords[2]!)) {
       comment(labelWithChords[1]!.trim());
@@ -74,7 +80,7 @@ export function chordsOverWordsToChordPro(input: string): string {
 
     if (isChordLine(line)) {
       const next = lines[i + 1];
-      const nextIsLyric = next !== undefined && next.trim() !== '' && !isChordLine(next) && labelOf(next) === null;
+      const nextIsLyric = next !== undefined && next.trim() !== '' && !DIRECTIVE.test(next) && !isChordLine(next) && labelOf(next) === null;
       if (nextIsLyric) {
         out.push(mergeChordsIntoLyrics(line, next));
         i += 1;
@@ -88,4 +94,10 @@ export function chordsOverWordsToChordPro(input: string): string {
   }
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** True for text in the "chords above the words" layout: lines of bare chords and no [chord] marks yet. */
+export function looksLikeChordsOverWords(text: string): boolean {
+  if (/\[[A-G][^\]\n]*\]/.test(text)) return false;
+  return text.split(/\r?\n/).filter((l) => l.trim() !== '' && isChordLine(l)).length >= 2;
 }

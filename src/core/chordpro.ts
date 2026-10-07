@@ -68,7 +68,7 @@ export function sectionKindOfLabel(label: string): InsertableKind | null {
   if (!n) return null;
   if (/^(pre ?chorus|prechorus|pre ?ritornello|pre ?inciso)\b/.test(n)) return 'prechorus';
   if (/^(post ?chorus|chorus|ritornello|refrain|hook|inciso)\b/.test(n)) return 'chorus';
-  if (/^(verse|strofa)\b/.test(n)) return 'verse';
+  if (/^(verse|strofa|verso|versi)\b/.test(n)) return 'verse';
   if (/^(bridge|ponte)\b/.test(n)) return 'bridge';
   if (/^(intro|introduzione)\b/.test(n)) return 'intro';
   if (/^(outro|finale|coda|ending|tag)\b/.test(n)) return 'outro';
@@ -211,7 +211,7 @@ export function insertSection(source: string, cursor: number, kind: InsertableKi
   return { text, cursor: lineStart + open.length };
 }
 
-const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
+const HEADING_WORD = /^(?:pre-?chorus|post-?chorus|chorus|verse|verso|versi|bridge|intro|introduzione|outro|solo|interlude|interludio|instrumental|strumentale|refrain|hook|coda|tag|break|riff|strofa|ritornello|inciso|ponte|finale|assolo|ending|tab)\b/i;
 
 /** The text of a heading line ("[Verse 1]", "Chorus:", "**Bridge**", "## Outro", "{comment: Solo}") or null when the line is something else. */
 function headingOf(line: string): string | null {
@@ -282,4 +282,55 @@ export function chartStats(source: string): { lines: number; chords: number } {
   const lines = source.split(/\r?\n/).filter((l) => l.trim() !== '' && !/^\s*\{.*\}\s*$/.test(l)).length;
   const chords = (source.match(/\[[^\]\n]+\]/g) ?? []).length;
   return { lines, chords };
+}
+
+const blockKey = (lines: readonly string[]) =>
+  lines.map((l) => l.replace(/\[[^\]]*\]/g, '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+
+/** How much of the bigger block's lines the two blocks share (0–1). */
+function overlap(a: readonly string[], b: readonly string[]): number {
+  const set = new Set(b);
+  return a.filter((l) => set.has(l)).length / Math.max(a.length, b.length, 1);
+}
+
+/**
+ * A guess for text with no headings: the stanzas (separated by blank lines) that come back are the chorus, the rest are
+ * verses; a short stanza at the start is the intro, at the end the outro, and one between others a bridge. Only an estimate:
+ * pasting the text with its headings gives an exact split.
+ */
+export function guessSections(source: string): { text: string; count: number } {
+  if (/\{start_of_/i.test(source)) return { text: source, count: 0 };
+  const blocks: string[][] = [];
+  let current: string[] = [];
+  for (const line of source.replace(/\r\n?/g, '\n').split('\n')) {
+    if (line.trim() === '') {
+      if (current.length > 0) blocks.push(current);
+      current = [];
+    } else current.push(line);
+  }
+  if (current.length > 0) blocks.push(current);
+  if (blocks.length < 2) return { text: source, count: 0 };
+
+  const keys = blocks.map(blockKey);
+  const repeated = keys.map((k, i) => k.length > 0 && keys.some((o, j) => j !== i && overlap(k, o) >= 0.7));
+  let verse = 0;
+  let bridge = false;
+  const out: string[] = [];
+  blocks.forEach((block, i) => {
+    const short = block.length <= 2 && !repeated[i];
+    let kind: InsertableKind;
+    let label: string;
+    if (repeated[i]) [kind, label] = ['chorus', 'Chorus'];
+    else if (short && i === 0 && blocks.length >= 3) [kind, label] = ['intro', 'Intro'];
+    else if (short && i === blocks.length - 1 && blocks.length >= 3) [kind, label] = ['outro', 'Outro'];
+    else if (short && i > 0 && !bridge && blocks.length >= 4) {
+      bridge = true;
+      [kind, label] = ['bridge', 'Bridge'];
+    } else {
+      verse++;
+      [kind, label] = ['verse', `Verse ${verse}`];
+    }
+    out.push(`{start_of_${SECTION_TAGS[kind]}: ${label}}`, ...block, `{end_of_${SECTION_TAGS[kind]}}`, '');
+  });
+  return { text: `${out.join('\n').trimEnd()}\n`, count: blocks.length };
 }

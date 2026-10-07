@@ -82,3 +82,35 @@ describe('structureSections', () => {
     expect(structureSections('[Am]hello world\nI sing the chorus of a long song today').count).toBe(0);
   });
 });
+
+describe('guessSections', () => {
+  it('labels repeated stanzas as chorus and the others as verses', async () => {
+    const { guessSections, parseChordPro } = await import('../chordpro');
+    const text = 'Karma police\nArrest this man\nHe talks in maths\n\nKarma police\nArrest this girl\nHer Hitler hairdo\n\nThis is what you get\nWhen you mess with us\n\nKarma police\nI have given all I can\nIt is not enough\n\nThis is what you get\nWhen you mess with us';
+    const r = guessSections(text);
+    expect(r.count).toBe(5);
+    const labels = parseChordPro(r.text).lines.filter((l) => l.kind === 'label').map((l) => (l as { text: string }).text);
+    expect(labels).toEqual(['Verse 1', 'Verse 2', 'Chorus', 'Verse 3', 'Chorus']);
+  });
+  it('does nothing on a single stanza or text that already has blocks', async () => {
+    const { guessSections } = await import('../chordpro');
+    expect(guessSections('one\ntwo').count).toBe(0);
+    expect(guessSections('{start_of_verse: V}\na\n{end_of_verse}\n\nb').count).toBe(0);
+  });
+});
+
+describe('chords over words with sections', () => {
+  it('places chords, understands Italian headings and leaves existing blocks alone', async () => {
+    const { chordsOverWordsToChordPro, looksLikeChordsOverWords } = await import('../chordsOverWords');
+    const { structureSections } = await import('../chordpro');
+    const text = 'Verso 1\nAm      F\nKarma police\nEm\nArrest this man\n\nChorus\nAm\nla la';
+    expect(looksLikeChordsOverWords(text)).toBe(true);
+    expect(looksLikeChordsOverWords('[Am]already chordpro\n[G]x')).toBe(false);
+    const r = structureSections(chordsOverWordsToChordPro(text));
+    expect(r.count).toBe(2);
+    expect(r.text).toContain('{start_of_verse: Verso 1}');
+    expect(r.text).toContain('[Am]Karma ');
+    const kept = chordsOverWordsToChordPro('{start_of_verse: Verse 1}\nEm   G\nhello there\n{end_of_verse}');
+    expect(kept).toBe('{start_of_verse: Verse 1}\n[Em]hello[G] there\n{end_of_verse}');
+  });
+});
