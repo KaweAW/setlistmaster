@@ -271,7 +271,7 @@ function SongView({
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <Link to={setlistId ? `/setlist/${setlistId}` : '/library'} aria-label={t('common.back')} className={iconButton}>←</Link>
           <div className="min-w-0 flex-1">
-            <h1 className="song-title truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide">{song.title}</h1>
+            <h1 data-vt-to="song-title" className="song-title truncate font-display text-2xl font-bold uppercase leading-tight tracking-wide">{song.title}</h1>
             <p className="song-sub truncate text-xs text-chrome-ink/70">
               {[song.artist, position >= 0 && t('chart.position', { n: position + 1, total: order.length })]
                 .filter(Boolean)

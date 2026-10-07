@@ -307,3 +307,45 @@
 /* The setlist title flying from the home card to its page (lib/viewTransition). */
 ::view-transition-group(setlist-title) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 220ms; }
+
+/* Song library */
+.lib-search { transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms ease; transform-origin: left center; }
+.lib-search:focus-within { transform: scaleX(1.012); box-shadow: 0 10px 26px -16px rgb(var(--c-io) / 0.6); }
+.song-row {
+  position: relative;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 200ms ease;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.song-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 18%; bottom: 18%;
+  width: 3px;
+  border-radius: 3px;
+  background: rgb(var(--c-io));
+  transform: scaleY(0);
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (hover: hover) {
+  .song-row:hover { transform: translateX(4px); background: rgb(var(--c-io) / 0.05); }
+  .song-row:hover::before { transform: scaleY(1); }
+}
+.song-row:active { transform: scale(0.985); background: rgb(var(--c-io) / 0.08); }
+.song-row[data-active]::before { transform: scaleY(1); }
+.key-disc { transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 200ms ease; }
+@media (hover: hover) { .song-row:hover .key-disc { transform: rotate(-8deg) scale(1.08); } }
+.lib-letter { backdrop-filter: blur(8px); }
+.lib-rail button { transition: transform 140ms ease, color 140ms ease; }
+.lib-rail button[data-on] { transform: scale(1.6); color: rgb(var(--c-io)); font-weight: 800; }
+@keyframes lib-bubble { from { opacity: 0; transform: translate(8px, -50%) scale(0.8); } to { opacity: 1; transform: translate(0, -50%) scale(1); } }
+.lib-bubble { animation: lib-bubble 140ms ease-out both; }
+@keyframes lib-bars { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+.lib-bars i { display: block; width: 6px; height: 36px; border-radius: 3px; background: rgb(var(--c-io)); transform-origin: bottom; animation: lib-bars 1.1s ease-in-out infinite; }
+.lib-bars i:nth-child(2) { animation-delay: 0.15s; background: rgb(107 75 184); }
+.lib-bars i:nth-child(3) { animation-delay: 0.3s; background: rgb(var(--c-lei)); }
+.lib-bars i:nth-child(4) { animation-delay: 0.45s; }
+@media (prefers-reduced-motion: reduce) {
+  .lib-search:focus-within, .song-row:hover, .song-row:active, .lib-rail button[data-on] { transform: none; }
+  .lib-bars i { animation: none; transform: scaleY(0.7); }
+}

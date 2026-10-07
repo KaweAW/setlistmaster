@@ -24,3 +24,53 @@ export function formatTuningNotes(text: string): string {
   const notes = parseTuningNotes(text);
   return notes ? notes.join(' ') : text.trim();
 }
+
+/** The notes a string can be tuned to. */
+export const TUNING_NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'] as const;
+
+/** Standard guitar tuning, lowest string first. */
+export const STANDARD_STRINGS: readonly string[] = ['E', 'A', 'D', 'G', 'B', 'E'];
+
+/** Strings added below the sixth, in the order a 7- and an 8-string guitar get them. */
+export const EXTRA_LOW_STRINGS: readonly string[] = ['B', 'F♯'];
+
+export const MIN_STRINGS = STANDARD_STRINGS.length;
+export const MAX_STRINGS = STANDARD_STRINGS.length + EXTRA_LOW_STRINGS.length;
+
+/** Enharmonic spellings the picker offers: "C#" and "Db" are the same string. */
+const SPELLED: Record<string, string> = { 'D♭': 'C♯', 'D♯': 'E♭', 'G♭': 'F♯', 'G♯': 'A♭', 'A♯': 'B♭' };
+export const spellNote = (note: string): string => SPELLED[note] ?? note;
+
+/** The strings of a tuning written as notes ("D A D G B E"), or null when the text is not a list of 4–8 notes. */
+export function tuningStrings(text: string): string[] | null {
+  const notes = parseTuningNotes(text)?.map((n) => spellNote(n.replace(/\d$/, '')));
+  return notes && notes.length >= MIN_STRINGS && notes.length <= MAX_STRINGS ? notes : null;
+}
+
+/** A guitar with `count` strings in standard tuning (extra strings go below the lowest one). */
+export function standardStrings(count = STANDARD_STRINGS.length): string[] {
+  const extra = EXTRA_LOW_STRINGS.slice(0, Math.max(0, count - STANDARD_STRINGS.length)).reverse();
+  return [...extra, ...STANDARD_STRINGS];
+}
+
+export const isStandardStrings = (strings: readonly string[]): boolean =>
+  strings.length === STANDARD_STRINGS.length && strings.every((n, i) => n === STANDARD_STRINGS[i]);
+
+const NAMED: Record<string, string> = {
+  'D A D G B E': 'Drop D',
+  'E♭ A♭ C♯ F♯ B♭ E♭': 'Half step down',
+  'D G C F A D': 'Whole step down',
+  'D A D F♯ A D': 'Open D',
+  'D G D G B D': 'Open G',
+  'D A D G A D': 'DADGAD',
+};
+
+/** A name for a tuning given as strings: "Drop D" when it is a known one, otherwise its notes. */
+export function nameForStrings(strings: readonly string[]): string {
+  if (isStandardStrings(strings)) return 'Standard';
+  const text = strings.join(' ');
+  return NAMED[text] ?? text;
+}
+
+/** The same list of notes, written one way, to compare tunings typed in different ways. */
+export const stringsKey = (strings: readonly string[]): string => strings.join(' ');

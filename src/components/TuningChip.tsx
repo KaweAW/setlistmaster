@@ -7,10 +7,21 @@ import { useT } from '../i18n';
  * highest, separated by thin dots ("D · G · C · F · A · D"), followed by the ♭ square of the prototype.
  * Free text that is not a list of notes (e.g. "open G") is shown as it is.
  */
-export function TuningChip({ tuning, withFlat = true }: { tuning: Tuning; withFlat?: boolean }) {
+export function TuningChip({ tuning, withFlat = true, compact = false }: { tuning: Tuning; withFlat?: boolean; compact?: boolean }) {
   const t = useT();
   const text = tuning.notes.trim() || tuning.name;
   const notes = parseTuningNotes(text);
+  if (compact) {
+    return (
+      <span
+        className="inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full bg-acc-tint px-2 font-display text-[12px] font-bold leading-none tracking-wide text-acc-ink"
+        title={`${t('tuning.different')}: ${tuning.name}`}
+      >
+        <span aria-hidden className="text-[13px] text-acc">♭</span>
+        {notes ? notes.join('') : text}
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1" title={`${t('tuning.different')}: ${tuning.name}`}>
       <span className="inline-flex items-center whitespace-nowrap rounded-full bg-acc-tint px-2 py-[3px] font-display text-[12px] font-bold leading-none text-acc-ink">
