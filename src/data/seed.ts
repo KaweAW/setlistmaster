@@ -28,8 +28,8 @@ const PERFORMERS: Record<Who, { name: string; color: string; symbol: string }> =
 };
 
 const TUNINGS: Record<TuningKey, { name: string; notes: string; isStandard: boolean }> = {
-  standard: { name: 'Standard (E A D G B E)', notes: 'E A D G B E', isStandard: true },
-  dgcfad: { name: 'D-G-C-F-A-D', notes: 'D-G-C-F-A-D', isStandard: false },
+  standard: { name: 'Standard', notes: 'E A D G B E', isStandard: true },
+  dgcfad: { name: 'Whole step down', notes: 'D G C F A D', isStandard: false },
   dadgbe: { name: 'Drop D', notes: 'D A D G B E', isStandard: false },
   dbdgbe: { name: 'D B D G B E', notes: 'D B D G B E', isStandard: false },
 };

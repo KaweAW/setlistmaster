@@ -1,7 +1,9 @@
-import { Select } from './Select';
+import { TuningPicker } from './TuningPicker';
+import { useData } from '../data/DataProvider';
+import { stringsOf, tuningIdFor } from '../data/tunings';
 import { useState } from 'react';
 import { sameIdSet, type ItemPatch } from '../core/setlistOps';
-import { formatTuningNotes } from '../core/tuning';
+import { standardStrings, stringsKey } from '../core/tuning';
 import type { Performer, SetlistItem, Song, Tuning, TransitionType } from '../core/types';
 import { useT } from '../i18n';
 import { Modal } from './Modal';
@@ -29,24 +31,31 @@ export function ItemEditorDialog({
   const t = useT();
   const [selected, setSelected] = useState(item.performerIds.length > 0 ? item.performerIds : song.defaultPerformerIds);
   const [performerNote, setPerformerNote] = useState(item.performerNote);
-  const [tuningOverrideId, setTuningOverrideId] = useState(item.tuningOverrideId ?? '');
+  const { store, band } = useData();
+  const songTuning = tunings.find((x) => x.id === song.tuningId);
+  const songStrings = (songTuning ? stringsOf(songTuning) : null) ?? standardStrings();
+  const overrideTuning = tunings.find((x) => x.id === item.tuningOverrideId);
+  // Same as the song until the strings are changed here; changing them back to the song's own drops the override.
+  const [strings, setStrings] = useState<string[]>((overrideTuning ? stringsOf(overrideTuning) : null) ?? songStrings);
+  const [tuningTouched, setTuningTouched] = useState(false);
   const [transitionType, setTransitionType] = useState<TransitionType>(item.transitionType);
   const [transitionText, setTransitionText] = useState(item.transitionText);
   const [notes, setNotes] = useState(item.notes);
 
-  const songTuning = tunings.find((x) => x.id === song.tuningId);
   const transitions: { type: TransitionType; label: string }[] = [
     { type: 'segue', label: `↳ ${t('transition.segue')}` },
     { type: 'stop', label: `■ ${t('transition.stop')}` },
     { type: 'none', label: t('transition.none') },
   ];
 
-  function save() {
+  async function save() {
+    const sameAsSong = stringsKey(strings) === stringsKey(songStrings);
+    const tuningOverrideId = !tuningTouched ? item.tuningOverrideId : sameAsSong ? undefined : await tuningIdFor(store, band.id, strings);
     onSave({
       // Same singers as the song's defaults = keep inheriting them.
       performerIds: sameIdSet(selected, song.defaultPerformerIds) ? [] : selected,
       performerNote: performerNote.trim(),
-      tuningOverrideId: tuningOverrideId || undefined,
+      tuningOverrideId,
       transitionType,
       transitionText: transitionType === 'none' ? '' : transitionText,
       notes,
@@ -82,17 +91,18 @@ export function ItemEditorDialog({
           <input className={inputClass} value={performerNote} onChange={(e) => setPerformerNote(e.target.value)} />
         </Field>
 
-        <Field label={t('item.tuning')}>
-          <Select
-            label={t('item.tuning')}
-            value={tuningOverrideId}
-            onChange={setTuningOverrideId}
-            options={[
-              { value: '', label: t('item.tuningDefault', { name: songTuning ? songTuning.name : '—' }) },
-              ...tunings.map((x) => ({ value: x.id, label: x.isStandard || !x.notes ? x.name : `${x.name} — ${formatTuningNotes(x.notes)}` })),
-            ]}
-          />
-        </Field>
+        <FieldGroup legend={t('item.tuning')}>
+          <TuningPicker strings={strings} onChange={(next) => { setStrings(next); setTuningTouched(true); }} />
+          {stringsKey(strings) !== stringsKey(songStrings) && (
+            <button
+              type="button"
+              className="mt-2 h-9 text-sm font-semibold text-io"
+              onClick={() => { setStrings(songStrings); setTuningTouched(true); }}
+            >
+              {t('item.tuningDefault', { name: songTuning ? songTuning.name : '—' })}
+            </button>
+          )}
+        </FieldGroup>
 
         <FieldGroup legend={t('item.transition')}>
           <div className="flex flex-wrap gap-2">
@@ -123,7 +133,7 @@ export function ItemEditorDialog({
         </Field>
 
         <div className="flex flex-wrap gap-3 pt-1">
-          <Button onClick={save}>{t('common.done')}</Button>
+          <Button onClick={() => void save()}>{t('common.done')}</Button>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="danger" className="ml-auto" onClick={onRemove}>{t('item.removeFromSetlist')}</Button>
         </div>

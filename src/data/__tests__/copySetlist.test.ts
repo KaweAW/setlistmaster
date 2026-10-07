@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createLocalBand } from '../bands';
 import { bootstrap } from '../bootstrap';
-import { copySetlistToBand } from '../copySetlist';
+import { copySetlistToBand, copySongsToBand } from '../copySetlist';
 import { createDexieStore } from '../dexie/dexieRepository';
 import { loadTree } from '../setlistService';
 
@@ -52,5 +52,23 @@ describe('copySetlistToBand', () => {
 
   it('returns undefined for a missing setlist', async () => {
     expect(await copySetlistToBand(store, 'nope', from)).toBeUndefined();
+  });
+});
+
+describe('copySongsToBand', () => {
+  it('copies single songs once and leaves the ones the target has', async () => {
+    const store = createDexieStore({ dbName: `copy-songs-${++n}`, now: () => ++clock });
+    const from = (await bootstrap(store)).id;
+    const to = (await createLocalBand(store, 'Other', 'en')).id;
+    const creep = (await store.songs.listBy('bandId', from)).find((s) => s.title === 'Creep')!;
+    await store.songs.update(creep.id, { chordpro: '[Am]hello' });
+    const first = await copySongsToBand(store, [creep.id], to);
+    expect(first).toEqual({ copied: 1, existing: 0 });
+    const copy = (await store.songs.listBy('bandId', to)).find((s) => s.title === 'Creep')!;
+    expect(copy.chordpro).toBe('[Am]hello');
+    expect(copy.id).not.toBe(creep.id);
+    expect((await store.tunings.get(copy.tuningId))?.bandId).toBe(to);
+    expect(await copySongsToBand(store, [creep.id], to)).toEqual({ copied: 0, existing: 1 });
+    expect((await store.songs.listBy('bandId', to)).filter((s) => s.title === 'Creep')).toHaveLength(1);
   });
 });
