@@ -201,8 +201,16 @@ export function SetlistEditor({ tree, songs, performers, tunings, apply, createS
       {pickerBlockId && (
         <SongPickerDialog
           songs={songs}
+          inBlock={new Set(tree.items.filter((i) => i.blockId === pickerBlockId).map((i) => i.songId))}
           inSetlist={new Set(tree.items.map((i) => i.songId))}
           onAdd={(songId) => apply((tr, ctx) => addItem(tr, ctx, pickerBlockId, songId))}
+          onRemove={(songId) =>
+            apply((tr) => {
+              const own = tr.items.filter((i) => i.songId === songId);
+              const last = own.filter((i) => i.blockId === pickerBlockId).at(-1) ?? own.at(-1);
+              return last ? removeItem(tr, last.id) : tr;
+            })
+          }
           onCreate={createSong}
           onClose={() => setPickerBlockId(null)}
         />
