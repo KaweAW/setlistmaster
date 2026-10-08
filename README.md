@@ -2,10 +2,51 @@
 
 [![CI](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml/badge.svg)](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml)
 
-A local-first app for bands: build setlists, keep songs with chords and PDF charts, and play from them on stage.
-It is a PWA, so it installs on iPhone, iPad and Mac and works with no internet at all.
+**Live demo: [test-setlistmaster.netlify.app](https://test-setlistmaster.netlify.app/)** (it opens with an example setlist; nothing leaves your device unless you turn on sharing).
 
-<!-- Add screenshots: docs/screenshots/setlist.png, song.png -->
+Scaletta is a setlist app I built for my own cover band. Paper setlists and shared chat threads fall apart on stage:
+who sings what, which guitar is in drop D, what comes next without a pause. Here the setlist, the chord charts and the
+stage view live in one installable app that keeps working with no signal at all, and the band can optionally share
+everything live.
+
+<p align="center">
+  <img src="docs/screenshots/setlist.png" alt="A setlist in blocks, with singers, alternate tunings and transitions" width="78%">
+</p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/library-mobile.png" alt="Song library with search and an A-Z rail"></td>
+    <td width="33%"><img src="docs/screenshots/song-peek-mobile.png" alt="Long press on a song: preview card with open, edit, copy and delete"></td>
+    <td width="33%"><img src="docs/screenshots/home-mobile.png" alt="Home with personal and shared band tabs"></td>
+  </tr>
+  <tr>
+    <td align="center">Library</td>
+    <td align="center">Long-press preview</td>
+    <td align="center">Personal and shared bands</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/song.png" alt="A song chart with coloured chords and section tabs"></td>
+    <td width="50%"><img src="docs/screenshots/stage-mode.png" alt="Stage mode: dark screen, large chords, screen kept awake"></td>
+  </tr>
+  <tr>
+    <td align="center">Chord chart with sections</td>
+    <td align="center">Stage mode</td>
+  </tr>
+</table>
+
+The songs in these pictures are invented examples; Scaletta never ships lyrics or chords.
+
+## Engineering notes
+
+- **Local-first, optional cloud.** Every edit is written to IndexedDB first (repository abstraction over Dexie) and queued in an outbox; a small sync engine pushes it to Supabase and pulls what is new (cursor-based, idempotent, last write wins per record). Without a cloud project the app is fully functional.
+- **Permissions in the database.** Bands, members and roles (creator, editor, viewer) are enforced with Postgres row-level security, and the policies are tested against a real Postgres (PGlite), including the "a stranger cannot read or write anything" cases.
+- **Pure domain core.** `src/core/` has no React and no browser APIs (ChordPro and chords-over-words parsing, section detection, transposition, tunings, setlist operations as pure `tree -> tree` functions, so undo/redo is just snapshots). ESLint enforces the boundaries between `core/`, `data/` and the UI.
+- **Quality gates.** TypeScript strict, ESLint, more than 350 unit, UI and database tests, and a CI workflow that runs typecheck, lint, tests and build on every pull request.
+- **Real PWA.** Installable, cached in full after the first visit, with updates that wait for a tap so a gig is never interrupted.
+- [`docs/decisions.md`](docs/decisions.md) records the reasoning behind each phase.
 
 ## Features
 
