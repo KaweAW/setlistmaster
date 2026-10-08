@@ -53,7 +53,9 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
   // The personal space must always exist, even when the first band was shared: make an empty one.
   useEffect(() => {
     if (!cloud.configured || !bands.data || personal) return;
-    void ensurePersonalBand(store, t('tabs.personal'), language).then((made) => made && bands.reload());
+    let alive = true; // the screen may be gone by the time the band is made
+    void ensurePersonalBand(store, t('tabs.personal'), language).then((made) => alive && made && bands.reload());
+    return () => { alive = false; };
   }, [cloud.configured, bands, personal, store, t, language]);
 
   // Signing out while a shared band is open: go back to the personal space.
