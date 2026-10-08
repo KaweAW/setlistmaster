@@ -6,6 +6,7 @@ import { PerformerBadge } from '../components/PerformerBadge';
 import { RemoteFlash } from '../components/RemoteFlash';
 import { Select } from '../components/Select';
 import { CopySongDialog } from '../components/CopySetlistDialog';
+import { SongPeek } from '../components/SongPeek';
 import { TuningChip } from '../components/TuningChip';
 import { buttonClass, PageTitle } from '../components/ui';
 import { useCanEdit } from '../cloud/CloudProvider';
@@ -79,11 +80,7 @@ export default function LibraryPage() {
   const [menu, setMenu] = useState<Song | null>(null);
   const [copying, setCopying] = useState<Song | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const press = useRef({ timer: 0, fired: false });
-  // The finger that opened the menu is still down: its release must not tap (or dismiss) what the menu put under it.
-  const menuOpenedAt = useRef(0);
-  const tooSoon = () => Date.now() - menuOpenedAt.current < 450;
-
+  const press = useRef({ timer: 0, fired: false, x: 0, y: 0 });
   const { data, loading, reload } = useQuery(async () => {
     const [songs, performers, tunings] = await Promise.all([
       store.songs.listBy('bandId', band.id),
@@ -120,15 +117,20 @@ export default function LibraryPage() {
   const startPress = (song: Song) => (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse') return;
     press.current.fired = false;
+    press.current.x = e.clientX;
+    press.current.y = e.clientY;
     clearTimeout(press.current.timer);
     press.current.timer = +setTimeout(() => {
       press.current.fired = true;
       navigator.vibrate?.(12);
-      menuOpenedAt.current = Date.now();
       setMenu(song);
     }, 480);
   };
   const endPress = () => clearTimeout(press.current.timer);
+  // A finger that drifts is scrolling, not holding.
+  const movePress = (e: ReactPointerEvent) => {
+    if (Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) endPress();
+  };
 
   async function remove(song: Song) {
     setMenu(null);
@@ -271,10 +273,11 @@ export default function LibraryPage() {
                     className="song-row flex min-h-[64px] min-w-0 flex-1 select-none items-center gap-3 px-1 py-2.5 [-webkit-touch-callout:none]"
                     draggable={false}
                     onPointerDown={startPress(song)}
+                    onPointerMove={movePress}
                     onPointerUp={endPress}
                     onPointerLeave={endPress}
                     onPointerCancel={endPress}
-                    onContextMenu={(e) => { e.preventDefault(); menuOpenedAt.current = Date.now(); setMenu(song); }}
+                    onContextMenu={(e) => { e.preventDefault(); setMenu(song); }}
                     onClick={(e) => {
                       if (press.current.fired) { press.current.fired = false; e.preventDefault(); return; }
                     }}
@@ -324,22 +327,16 @@ export default function LibraryPage() {
 
       {grouped && groups.length > 1 && <LetterRail letters={groups.map((g) => g.letter)} onJump={jump} />}
 
-      {menu && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-chrome/50 motion-safe:animate-fade-in sm:items-center" onClick={() => !tooSoon() && setMenu(null)} onClickCapture={(e) => { if (tooSoon()) { e.preventDefault(); e.stopPropagation(); } }}>
-          <div
-            role="menu"
-            aria-label={menu.title}
-            className="w-full max-w-sm rounded-t-2xl bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl motion-safe:animate-rise-in sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="truncate px-4 pb-1 pt-3 font-display text-lg font-bold uppercase tracking-wide">{menu.title}</p>
-            <Link role="menuitem" to={`/song/${menu.id}`} className="flex min-h-[48px] items-center rounded-lg px-4 font-semibold hover:bg-line/40">{t('menu.open')}</Link>
-            {canEdit && <Link role="menuitem" to={`/library/${menu.id}`} className="flex min-h-[48px] items-center rounded-lg px-4 font-semibold hover:bg-line/40">{t('common.edit')}</Link>}
-            <button type="button" role="menuitem" onClick={() => { setCopying(menu); setMenu(null); }} className="flex min-h-[48px] w-full items-center rounded-lg px-4 text-left font-semibold hover:bg-line/40">{t('copy.action')}</button>
-            {canEdit && <button type="button" role="menuitem" onClick={() => void remove(menu)} className="flex min-h-[48px] w-full items-center rounded-lg px-4 text-left font-semibold text-lei hover:bg-lei/10">{t('common.delete')}</button>}
-          </div>
-        </div>,
-        document.body,
+      {menu && (
+        <SongPeek
+          song={menu}
+          tuning={tunings.get(menu.tuningId)}
+          performers={menu.defaultPerformerIds.flatMap((id) => performers.get(id) ?? [])}
+          canEdit={canEdit}
+          onClose={() => setMenu(null)}
+          onCopy={() => { setCopying(menu); setMenu(null); }}
+          onDelete={() => void remove(menu)}
+        />
       )}
       {copying && <CopySongDialog song={copying} onClose={() => setCopying(null)} />}
     </main>
