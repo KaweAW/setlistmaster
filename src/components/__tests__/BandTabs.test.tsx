@@ -65,6 +65,8 @@ describe('home band tabs', () => {
   it('swipes towards the Band tab and back; with several shared bands a second swipe opens the menu', async () => {
     await mount(['Wolves', 'Owls']);
     await screen.findByRole('tab', { name: /Personal/ });
+    // The shared bands arrive from the (fake) cloud a moment after the first paint; a swipe before that has nowhere to go.
+    await screen.findByRole('tab', { name: /Wolves/ }, { timeout: 8000 });
     const main = document.querySelector('main')!;
 
     swipe(main, -120); // finger moves left: to the shared band
