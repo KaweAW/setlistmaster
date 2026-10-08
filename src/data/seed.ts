@@ -2,7 +2,7 @@ import type { TransitionType } from '../core/types';
 import { positionsAfter } from '../core/ordering';
 import type { DataStore } from './repository';
 
-type Who = 'julie' | 'kawe' | 'coro';
+type Who = 'one' | 'two' | 'backing';
 type TuningKey = 'standard' | 'dgcfad' | 'dadgbe' | 'dbdgbe';
 
 interface SeedSong {
@@ -22,9 +22,9 @@ interface SeedBlock {
 }
 
 const PERFORMERS: Record<Who, { name: string; color: string; symbol: string }> = {
-  julie: { name: 'Julie', color: '#C4245C', symbol: '♀' },
-  kawe: { name: 'Kawe', color: '#0E7C86', symbol: '♂' },
-  coro: { name: 'Coro', color: '#6B4BB8', symbol: '∞' },
+  one: { name: 'Singer 1', color: '#C4245C', symbol: '♪' },
+  two: { name: 'Singer 2', color: '#0E7C86', symbol: '★' },
+  backing: { name: 'Backing vocals', color: '#6B4BB8', symbol: '∞' },
 };
 
 const TUNINGS: Record<TuningKey, { name: string; notes: string; isStandard: boolean }> = {
@@ -34,43 +34,43 @@ const TUNINGS: Record<TuningKey, { name: string; notes: string; isStandard: bool
   dbdgbe: { name: 'D B D G B E', notes: 'D B D G B E', isStandard: false },
 };
 
-/** Setlist from the prototype (brief, section 10). Titles and artists only: no lyrics or chords. */
+/** The example setlist every new band starts with. Titles and artists only: no lyrics or chords. */
 export const SEED_BLOCKS: SeedBlock[] = [
-  { name: 'Blocco 1', songs: [
-    { title: 'Fortunate Son', artist: 'CCR', who: ['julie'], tuning: 'dgcfad', tr: 'Fine riff → attacco diretto di **Get Back** (sempre se mi accordassi in tempo)' },
-    { title: 'Get Back', artist: 'Beatles', who: ['julie', 'coro'], tr: 'Ultimo “Get back” → riff di **Are You Gonna Be My Girl**' },
-    { title: 'Are You Gonna Be My Girl', artist: 'Jet', who: ['julie'], tr: 'Stop netto → attacco di **Gouge Away**' },
-    { title: 'Gouge Away', artist: 'Pixies', who: ['kawe'], tr: 'Stop netto e pausa', stop: true },
+  { name: 'Block 1', songs: [
+    { title: 'Fortunate Son', artist: 'CCR', who: ['one'], tuning: 'dgcfad', tr: 'End of riff → straight into **Get Back**' },
+    { title: 'Get Back', artist: 'Beatles', who: ['one', 'backing'], tr: 'Last “Get back” → riff of **Are You Gonna Be My Girl**' },
+    { title: 'Are You Gonna Be My Girl', artist: 'Jet', who: ['one'], tr: 'Hard stop → **Gouge Away** starts' },
+    { title: 'Gouge Away', artist: 'Pixies', who: ['two'], tr: 'Hard stop and a pause', stop: true },
   ] },
-  { name: 'Blocco 2', songs: [
-    { title: 'Have You Ever Seen the Rain', artist: 'CCR', who: ['julie'], tr: 'Fine → **Wish You Were Here**' },
-    { title: 'Wish You Were Here', artist: 'Pink Floyd', who: ['kawe'], tr: 'La solita' },
-    { title: 'Heart of Gold', artist: 'Neil Young', who: ['julie'], tr: 'Attacco subito di **Where Is My Mind?**' },
-    { title: 'Where Is My Mind?', artist: 'Pixies', who: ['kawe'], tr: 'Ultimo Mi maggiore → intro fatta da Alex' },
-    { title: 'Don’t Let Me Down', artist: 'Beatles', who: ['julie', 'coro'], tr: 'Fine → rimane solo batteria che porta **dolcemente** alla prossima' },
-    { title: 'Money', artist: 'Pink Floyd', who: ['kawe', 'julie'], note: 'io o lei', tr: 'Stop netto oppure → attacco di **Another Brick pt. 2**' },
-    { title: 'Another Brick in the Wall, Pt. 2', artist: 'Pink Floyd', who: ['julie', 'coro'], note: 'coro forse', tr: 'Stop netto', stop: true },
+  { name: 'Block 2', songs: [
+    { title: 'Have You Ever Seen the Rain', artist: 'CCR', who: ['one'], tr: 'End → **Wish You Were Here**' },
+    { title: 'Wish You Were Here', artist: 'Pink Floyd', who: ['two'], tr: 'The usual' },
+    { title: 'Heart of Gold', artist: 'Neil Young', who: ['one'], tr: 'Straight into **Where Is My Mind?**' },
+    { title: 'Where Is My Mind?', artist: 'Pixies', who: ['two'], tr: 'Last E major → the guitar plays the intro' },
+    { title: 'Don’t Let Me Down', artist: 'Beatles', who: ['one', 'backing'], tr: 'End → only the drums stay and lead **gently** to the next' },
+    { title: 'Money', artist: 'Pink Floyd', who: ['two', 'one'], note: 'either singer', tr: 'Hard stop, or → straight into **Another Brick pt. 2**' },
+    { title: 'Another Brick in the Wall, Pt. 2', artist: 'Pink Floyd', who: ['one', 'backing'], note: 'backing vocals, maybe', tr: 'Hard stop', stop: true },
   ] },
-  { name: 'Blocco 3', songs: [
-    { title: 'Bed’s Too Big Without You', artist: 'The Police', who: ['julie'], tr: 'Groove → si cerca di collegarla a **I Put a Spell on You**' },
-    { title: 'I Put a Spell on You', artist: 'CCR', who: ['julie'], tr: 'Fine → rimane solo batteria che porta **dolcemente** alla prossima' },
-    { title: 'Glory Box', artist: 'Portishead', who: ['julie'], tr: 'Groove rallentato in fade out → parte acustica' },
-    { title: 'Sparks', artist: 'Coldplay', who: ['julie'], tr: 'Alex porta il solo finale in fade out → parte acustica di **The Chain**' },
-    { title: 'The Chain', artist: 'Fleetwood Mac', who: ['julie', 'kawe'], tuning: 'dadgbe', tr: 'Alex porta il solo finale a un’intro della prossima canzone' },
-    { title: 'The Adults Are Talking', artist: 'The Strokes', who: ['julie'], tr: 'Stacco netto', stop: true },
+  { name: 'Block 3', songs: [
+    { title: 'Bed’s Too Big Without You', artist: 'The Police', who: ['one'], tr: 'Groove → try to link it to **I Put a Spell on You**' },
+    { title: 'I Put a Spell on You', artist: 'CCR', who: ['one'], tr: 'End → only the drums stay and lead **gently** to the next' },
+    { title: 'Glory Box', artist: 'Portishead', who: ['one'], tr: 'Slowed-down groove, fade out → acoustic part' },
+    { title: 'Sparks', artist: 'Coldplay', who: ['one'], tr: 'The guitar takes the final solo, fade out → acoustic part of **The Chain**' },
+    { title: 'The Chain', artist: 'Fleetwood Mac', who: ['one', 'two'], tuning: 'dadgbe', tr: 'The guitar takes the final solo into the intro of the next song' },
+    { title: 'The Adults Are Talking', artist: 'The Strokes', who: ['one'], tr: 'Hard cut', stop: true },
   ] },
-  { name: 'Blocco 4', songs: [
-    { title: 'Creep', artist: 'Radiohead', who: ['julie'], tr: 'Fine → attacco soft di **Karma Police**' },
-    { title: 'Karma Police', artist: 'Radiohead', who: ['julie', 'kawe'], note: 'lei o io', tr: 'Fade out' },
-    { title: 'There, There', artist: 'Radiohead', who: ['julie'], tuning: 'dbdgbe', tr: 'Stacco netto', stop: true },
+  { name: 'Block 4', songs: [
+    { title: 'Creep', artist: 'Radiohead', who: ['one'], tr: 'End → soft start of **Karma Police**' },
+    { title: 'Karma Police', artist: 'Radiohead', who: ['one', 'two'], note: 'either singer', tr: 'Fade out' },
+    { title: 'There, There', artist: 'Radiohead', who: ['one'], tuning: 'dbdgbe', tr: 'Hard cut', stop: true },
   ] },
-  { name: 'Blocco 5', subtitle: 'chiusura emotiva e atmosferica', songs: [
-    { title: 'Спокойная ночь', artist: 'Кино', who: ['kawe'], tr: 'Fine con armoniche di Alex → parte acustica di **Lover You Should’ve Come Over**' },
-    { title: 'Lover You Should’ve Come Over', artist: 'Jeff Buckley', who: ['julie'], tr: 'Chiusura', stop: true },
+  { name: 'Block 5', subtitle: 'slow, atmospheric close', songs: [
+    { title: 'Спокойная ночь', artist: 'Кино', who: ['two'], tr: 'End with harmonica → acoustic part of **Lover You Should’ve Come Over**' },
+    { title: 'Lover You Should’ve Come Over', artist: 'Jeff Buckley', who: ['one'], tr: 'Closing song', stop: true },
   ] },
 ];
 
-/** Writes performers, tunings, songs and the "Scaletta live" setlist for the given band. */
+/** Writes performers, tunings, songs and the "Example setlist" setlist for the given band. */
 export async function seedBand(store: DataStore, bandId: string): Promise<void> {
   const performerId = {} as Record<Who, string>;
   for (const key of Object.keys(PERFORMERS) as Who[]) {
@@ -82,7 +82,7 @@ export async function seedBand(store: DataStore, bandId: string): Promise<void> 
   }
 
   const setlist = await store.setlists.create({
-    bandId, title: 'Scaletta live', venue: '', notes: '', archived: false,
+    bandId, title: 'Example setlist', venue: '', notes: '', archived: false,
   });
   const blockPositions = positionsAfter(null, SEED_BLOCKS.length);
 

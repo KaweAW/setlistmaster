@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-// Each test gets a fresh browser profile, so the app starts from its example data (a setlist called "Scaletta live").
+// Each test gets a fresh browser profile, so the app starts from its example data (a setlist called "Example setlist").
 
 test('opens the example setlist and goes in and out of stage mode', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: /Scaletta live/ }).first().click();
-  await expect(page.getByRole('heading', { name: 'Scaletta live' })).toBeVisible();
+  await page.getByRole('link', { name: /Example setlist/ }).first().click();
+  await expect(page.getByRole('heading', { name: 'Example setlist' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Stage mode' }).first().click();
   const exit = page.getByRole('button', { name: 'Exit stage mode' });

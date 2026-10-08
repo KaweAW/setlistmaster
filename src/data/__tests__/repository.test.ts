@@ -55,18 +55,18 @@ describe('repository', () => {
 });
 
 describe('bootstrap + seed', () => {
-  it('creates the prototype setlist and is idempotent', async () => {
+  it('creates the example setlist and is idempotent', async () => {
     const store = fresh();
     const band = await bootstrap(store);
     const again = await bootstrap(store);
     expect(again.id).toBe(band.id);
 
     const [setlist] = await store.setlists.listBy('bandId', band.id);
-    expect(setlist?.title).toBe('Scaletta live');
+    expect(setlist?.title).toBe('Example setlist');
 
     const blocks = sortByPosition(await store.blocks.listBy('setlistId', setlist!.id));
     expect(blocks.map((b) => b.name)).toEqual(SEED_BLOCKS.map((b) => b.name));
-    expect(blocks[4]?.subtitle).toBe('chiusura emotiva e atmosferica');
+    expect(blocks[4]?.subtitle).toBe('slow, atmospheric close');
 
     const items = await store.items.listBy('setlistId', setlist!.id);
     expect(items).toHaveLength(22);

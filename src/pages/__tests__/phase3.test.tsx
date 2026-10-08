@@ -30,7 +30,7 @@ afterEach(() => {
 describe('PDF export', () => {
   it('offers Export PDF from the clean setlist view only', async () => {
     await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     expect(screen.getByRole('link', { name: 'Export PDF' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.queryByRole('link', { name: 'Export PDF' })).toBeNull();
@@ -49,7 +49,7 @@ describe('PDF export', () => {
 
     // header and legend only once, on the first page, and no app navigation
     const pages = document.querySelectorAll('.pp-page');
-    expect(pages[0]!.querySelector('h1')?.textContent).toBe('Scaletta live');
+    expect(pages[0]!.querySelector('h1')?.textContent).toBe('Example setlist');
     expect(document.querySelectorAll('.pp-page h1')).toHaveLength(1);
     expect(pages[0]!.textContent).toContain('Different tuning');
     expect(pages[0]!.textContent).toContain('Hard stop');
@@ -61,6 +61,6 @@ describe('PDF export', () => {
 
   it('uses the setlist title as the document title (default PDF file name)', async () => {
     await setup('/setlist/:id/print');
-    await waitFor(() => expect(document.title).toBe('Scaletta live'));
+    await waitFor(() => expect(document.title).toBe('Example setlist'));
   });
 });

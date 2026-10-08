@@ -118,7 +118,7 @@ describe('theme and stage mode', () => {
 
   it('hides editing on the setlist and keeps a way out', async () => {
     await setup(({ setlistId }) => `/setlist/${setlistId}`);
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Stage mode' }));
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
@@ -130,7 +130,7 @@ describe('theme and stage mode', () => {
   it('removes the navigation bar from the setlist on stage, but not from the other screens', async () => {
     useUiStore.setState({ stageMode: true });
     const { setlist } = await setup(({ setlistId }) => `/setlist/${setlistId}`);
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     const bottomNav = () => document.querySelector('nav[class*="bottom-0"]') as HTMLElement;
     expect(bottomNav().classList.contains('hidden')).toBe(true);
     expect(bottomNav().classList.contains('flex')).toBe(false);
@@ -343,7 +343,7 @@ describe('notices', () => {
   it('stays quiet after a recent backup and on a fresh install', async () => {
     useUiStore.setState({ lastBackupAt: Date.now() - DAY });
     await setup('/');
-    await screen.findByText('Scaletta live');
+    await screen.findByText('Example setlist');
     expect(screen.queryByText(/backup/i)).toBeNull();
   });
 
@@ -373,7 +373,7 @@ describe('notices', () => {
     useUiStore.setState({ stageMode: true, firstSeenAt: Date.now() - 40 * DAY });
     usePwaStore.setState({ needRefresh: true });
     await setup('/');
-    await screen.findByText('Scaletta live');
+    await screen.findByText('Example setlist');
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

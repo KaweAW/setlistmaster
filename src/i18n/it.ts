@@ -318,7 +318,7 @@ export const it: Record<MessageKey, string> = {
   'song.section.basics': 'Il brano',
   'song.section.more': 'Tag e note',
   'note.add': 'Aggiungi nota',
-  'note.hint': 'Un promemoria colorato nel testo, sopra la riga dove si trova il cursore. Esempio: “Intro lenta, aspetta Alex”.',
+  'note.hint': 'Un promemoria colorato nel testo, sopra la riga dove si trova il cursore. Esempio: “Intro lenta, aspetta il batterista”.',
   'note.color': 'Colore della nota',
   'note.color.yellow': 'Gialla',
   'note.color.pink': 'Rosa',
