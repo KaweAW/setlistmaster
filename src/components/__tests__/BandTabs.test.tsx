@@ -83,6 +83,29 @@ describe('home band tabs', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'), { timeout: 8000 });
   }, 30_000);
 
+  it('hides the shared bands while signed out and goes back to Personal', async () => {
+    const store = createDexieStore({ dbName: `tabs-${++n}` });
+    await bootstrap(store, 'Mine', null, 'en');
+    const b = await store.bands.create({ name: 'Wolves' });
+    await store.sync.linkBand(b.id);
+    const server = new FakeCloudServer();
+    const api = server.as(KAWE);
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <DataProvider store={store}><CloudProvider api={api}><AppRoutes /></CloudProvider></DataProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('tab', { name: /Wolves/ });
+    fireEvent.click(screen.getByRole('tab', { name: /Wolves/ }));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Wolves/ }).getAttribute('aria-selected')).toBe('true'));
+
+    await api.signOut();
+    await waitFor(() => expect(screen.queryByRole('tab', { name: /Wolves/ })).toBeNull());
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Personal/ }).getAttribute('aria-selected')).toBe('true'));
+    // the copy of the band is still on the device
+    expect((await store.bands.listAll()).some((x) => x.name === 'Wolves')).toBe(true);
+  });
+
   it('does not show the tabs on a device that cannot share', async () => {
     const store = createDexieStore({ dbName: `tabs-${++n}` });
     await bootstrap(store, 'Mine', null, 'en');
