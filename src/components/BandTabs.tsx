@@ -42,7 +42,9 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
   const [menu, setMenu] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
-  const { personal, shared } = groupBands(bands.data ?? [], cloud.linked);
+  // Signed out (the session is read from the device, so this also holds offline): shared bands are out of sight.
+  const signedOut = cloud.configured && cloud.user === null;
+  const { personal, shared } = groupBands(bands.data ?? [], cloud.linked, signedOut);
   const onShared = shared.some((b) => b.id === band.id);
   const hasSharedChoice = shared.length > 1;
   const both = !!personal && shared.length > 0;
@@ -53,6 +55,11 @@ export function BandTabs({ handleRef }: { handleRef?: MutableRefObject<BandTabsH
     if (!cloud.configured || !bands.data || personal) return;
     void ensurePersonalBand(store, t('tabs.personal'), language).then((made) => made && bands.reload());
   }, [cloud.configured, bands, personal, store, t, language]);
+
+  // Signing out while a shared band is open: go back to the personal space.
+  useEffect(() => {
+    if (signedOut && cloud.linked.has(band.id) && personal) setActive(personal.id);
+  }, [signedOut, cloud.linked, band.id, personal, setActive]);
 
   const goShared = () => {
     if (onShared) return setMenu(hasSharedChoice ? !menu : false);

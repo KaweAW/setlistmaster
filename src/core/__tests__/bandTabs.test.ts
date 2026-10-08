@@ -19,5 +19,10 @@ describe('groupBands', () => {
   it('without a band that stays local there is no personal tab (the home makes one)', () => {
     expect(groupBands(bands, new Set(['own', 'second', 'joined'])).personal).toBeUndefined();
   });
+  it('lists no shared band while signed out, and the personal one stays', () => {
+    const g = groupBands(bands, new Set(['joined', 'second']), true);
+    expect(g.personal?.id).toBe('own');
+    expect(g.shared).toEqual([]);
+  });
   it('copes with no bands', () => expect(groupBands([], new Set())).toEqual({ personal: undefined, shared: [] }));
 });

@@ -476,3 +476,15 @@ and what still has to be tried by hand on real devices.
 - The release of the finger that opened the menu used to land on the backdrop (closing the menu at once) or on an item under the finger: for 450 ms after it opens, clicks on the menu are swallowed.
 - **Song peek** (replaces the dropdown menu): a long press (or right click) opens `SongPeek`, like holding a chat on a phone: blurred backdrop, the song as a card (title, artist, key/capo/duration/tempo, tuning pill, singers and the first lines of the lyrics fading out), and under it Open / Edit / Copy to… / Delete. A tap outside or Esc puts it away; the first 450 ms of clicks are swallowed so the release of the opening finger does nothing. A finger that moves more than 10 px is scrolling, not holding.
 - **Long-press feel**: the hold threshold is 380 ms and, after 90 ms, the row sinks (`data-pressing`) so the wait already shows something happening; the peek's lyrics are parsed a frame after the card springs up; on phones the backdrop is a plain dim (blur only from `sm`), since blurring a whole screen while animating is costly on mobile GPUs. Measured with a 6× CPU slowdown the card is up ~540 ms after the touch, with two ~100 ms tasks.
+
+## Phase 25 — Signed out means no shared bands
+
+- **Shared bands are hidden while nobody is signed in.** Signing out used to leave every shared band on the home, which
+  looked as if the account had not been left. Now `groupBands(…, signedOut)` lists only the personal band; the home tabs
+  and the "copy to…" targets follow it. If a shared band was open, the app returns to the personal space.
+- **Nothing is deleted.** The local copies of the shared bands stay in IndexedDB and reappear on the next sign-in, so a
+  short sign-out never costs data or a full re-download.
+- **Offline-safe.** "Signed out" means the session read from the device is empty (`user === null`), not "the network is
+  down", so a signed-in musician with no signal on stage still sees the bands.
+- **Not a privacy wipe.** The data is out of sight, not removed from the browser's storage; a "remove shared bands from this
+  device" action is a possible follow-up for shared computers.

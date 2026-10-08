@@ -75,9 +75,10 @@ function CopyToBandDialog({
   const [error, setError] = useState(false);
   const [done, setDone] = useState<{ band: Band; name: string; message: string } | null>(null);
 
-  const { personal } = groupBands(bands.data ?? [], cloud.linked);
+  const signedOut = cloud.configured && cloud.user === null;
+  const { personal } = groupBands(bands.data ?? [], cloud.linked, signedOut);
   const nameOf = (b: Band) => (personal?.id === b.id ? t('tabs.personal') : b.name);
-  const targets = (bands.data ?? []).filter((b) => b.id !== band.id).sort((a, b) => a.createdAt - b.createdAt);
+  const targets = (bands.data ?? []).filter((b) => b.id !== band.id && !(signedOut && cloud.linked.has(b.id))).sort((a, b) => a.createdAt - b.createdAt);
 
   async function pick(target: Band) {
     setBusy(true);
