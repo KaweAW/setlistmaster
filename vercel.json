@@ -1,1 +1,0 @@
-{ "rewrites": [{ "source": "/((?!assets/|sw\\.js|workbox-).*)", "destination": "/index.html" }] }

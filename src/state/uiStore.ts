@@ -41,8 +41,8 @@ export const MIN_FONT_SIZE = 12;
 export const MAX_FONT_SIZE = 56;
 const clampSize = (size: number) => Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size));
 
-const defaultLanguage = (): Language =>
-  typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('it') ? 'it' : 'en';
+/** English until the person picks another language in Settings (the choice is then remembered). */
+const defaultLanguage = (): Language => 'en';
 
 export const useUiStore = create<UiState>()(
   persist(

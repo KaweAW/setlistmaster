@@ -3,6 +3,20 @@
 A record of the choices made while building Scaletta, by phase, and why. Each phase ends with what was verified
 and what still has to be tried by hand on real devices.
 
+## The short version
+
+- **Local-first.** IndexedDB (through Dexie) is the source of truth; the app is fully usable offline and with no account.
+  Sharing through Supabase is optional and layered on top: writes go to an outbox and are replayed, reads come from a
+  cursor-based pull, conflicts are resolved last-write-wins per record (Phase 6).
+- **A thin, abstract data layer.** The UI only talks to a repository interface (enforced by an ESLint rule), so storage and
+  sync can change without touching components (Phase 0).
+- **Pure core.** Setlist edits, pagination, chord parsing and transposition are pure functions in `core/`, covered by unit
+  tests; undo/redo is snapshot based (Phases 2–4).
+- **Security in the database.** Every record carries a `bandId`, and Postgres row-level security decides who can read or
+  write; the policies are tested against an in-memory Postgres (PGlite) (Phases 6, 14).
+- **Honest about limits.** Each phase lists what automated tests cannot prove (real devices, Safari, Supabase project) so
+  that nobody has to guess what was checked.
+
 ## Phase 0
 
 - **Package manager**: pnpm.
@@ -13,20 +27,20 @@ and what still has to be tried by hand on real devices.
   In phase 6 the implementation in `data/index.ts` can be swapped.
 - **Soft delete**: `remove()` sets `deletedAt`; reads exclude deleted records.
 - **`bandId` on every record** except `Band`, including `Block` and `SetlistItem`, for Supabase RLS policies.
-- **`setlistId` on `SetlistItem` too** (not in the brief): a whole setlist can be read with one indexed query.
+- **`setlistId` on `SetlistItem` too** (an addition to the original data model): a whole setlist can be read with one indexed query.
   It must stay consistent with the block.
 - **Timestamps** in epoch milliseconds (numbers); IDs from `crypto.randomUUID()`.
 - **Dexie schema v1**: indexes on `bandId`, `setlistId`, `blockId`, `songId`. `deletedAt` is not indexed
   (`undefined` values cannot be indexed); it is filtered in memory. Versions are added, never edited.
 - **Transitions**: `transitionText` is plain text, with `**bold**` for titles (see `core/emphasis.ts`).
-  An ambiguity in the prototype ("hard stop or → direct segue") became type `segue`, the rest stays in the text.
+  An ambiguity in the original paper setlist ("hard stop or → direct segue") became type `segue`, the rest stays in the text.
 - **Seed tunings**: "Standard", "D-G-C-F-A-D", "Drop D" (D A D G B E), "D B D G B E".
   Names are editable by the user. In the seed the tuning belongs to the song (`song.tuningId`), not to the item.
 - **Durations, keys, tempo**: empty in the seed. Totals on the home screen ignore songs without a duration.
 - **i18n**: a typed dictionary with no dependencies (`i18n/`), flat keys; Italian and English.
 - **Fonts**: bundled locally with `@fontsource` (Oswald, Source Sans 3, with Cyrillic subsets), so they work
   offline and render "Спокойная ночь".
-- **Dependencies beyond the brief's list**: `@fontsource/oswald`, `@fontsource/source-sans-3` (local fonts),
+- **Dependencies beyond the initial stack**: `@fontsource/oswald`, `@fontsource/source-sans-3` (local fonts),
   `fake-indexeddb` (repository tests), ESLint + `typescript-eslint` + `eslint-plugin-react-hooks`, Prettier.
 - **UI state**: Zustand with `persist` (only language and theme in localStorage). Edit mode is never restored:
   the app always opens in the safe view.
@@ -85,11 +99,11 @@ and what still has to be tried by hand on real devices.
 - **The PDF is the browser's print**: an "Export PDF" button (clean view only) → page `/setlist/:id/print`, without the
   navigation bar, with an A4 preview and "Print / Save as PDF" (`window.print()`). `@page { size: A4; margin: 0 }`,
   `print-color-adjust: exact`. The page title becomes the suggested file name ("Title date").
-- **Real pages, as in the prototype** (`print.css`): each page is an A4 `div` with the 6 mm dark strip and the 1.2 mm
-  gradient, and `break-after: page`. In the prototype blocks were assigned to the two pages by hand; here the split is
+- **Real pages, as in the original design mock-up** (`print.css`): each page is an A4 `div` with the 6 mm dark strip and the 1.2 mm
+  gradient, and `break-after: page`. In the mock-up blocks were assigned to the two pages by hand; here the split is
   automatic (`core/paginate.ts`, pure and tested):
   1. a block that fits in the remaining space stays there;
-  2. otherwise, if it fits whole on a new page, it goes there (breaks fall between blocks, as in the prototype);
+  2. otherwise, if it fits whole on a new page, it goes there (breaks fall between blocks, as in the mock-up);
   3. only a block taller than a page is split, between songs (a song and its transition are never separated), and each
      continuation repeats the heading with "cont.".
 - **Measure before paginating**: heights are measured in an off-screen copy with the same fonts and width (175 mm),
@@ -99,10 +113,10 @@ and what still has to be tried by hand on real devices.
   reflowed, so preview and print look the same and paginate the same. No `max-width` in print.
 - **One graphic source**: header, block title and song row (`PosterHeader`, `PosterBlockHeading`, `PosterRow` in
   `setlistParts.tsx`) are used by the on-screen view, the preview and the PDF. The legend comes from the same pure function.
-- **Tuning in the PDF**: uses the format chosen in phase 2 (amber pill with dotted notes), not the prototype's rectangle,
+- **Tuning in the PDF**: uses the format chosen in phase 2 (amber pill with dotted notes), not the mock-up's rectangle,
   for consistency with the app.
-- **Verification**: besides the tests (`paginate`, preview in jsdom), I generated the real PDF with headless Chromium and
-  checked the pages as images: 2 A4 pages for the prototype setlist, and 4 for a test with a 27-song block. jsdom has no
+- **Verification**: besides the tests (`paginate`, preview in jsdom), the real PDF was generated with headless Chromium and
+  checked page by page as images: 2 A4 pages for the example setlist, and 4 for a test with a 27-song block. jsdom has no
   layout engine, so this check is not automated in the project. To retry on Safari/iPad.
 
 ## Phase 4
@@ -134,7 +148,7 @@ and what still has to be tried by hand on real devices.
   The worker is bundled with the app (not from a CDN) to work offline. The PDF loads from a `blob:` URL: pdf.js transfers
   buffers to the worker and, under StrictMode, would leave an empty copy.
 - **`react-pdf` 10, not 11, and `pdfjs-dist` pinned to 5.4.296**: 11 uses `React.use`, which only exists in React 19 (the
-  project is React 18 per the brief) and broke when opening a PDF, which the tests could not see because the viewer is
+  project is on React 18) and broke when opening a PDF, which the tests could not see because the viewer is
   replaced in jsdom. `pdfjs-dist` is an explicit dependency, at the version `react-pdf` requires, because with pnpm it is
   not reachable from `react-pdf` for the worker import.
 - **Packages loaded on demand**: the song page (with ChordSheetJS, ~99 KB gzipped), the PDF viewer (~124 KB) and the pdf.js
@@ -199,8 +213,8 @@ and what still has to be tried by hand on real devices.
   (`Page.getInstallabilityErrors`), no failed requests or console errors.
   *To do by hand:* installing on iPhone/iPad, real airplane mode, real Wake Lock (headless Chromium refuses it), the iOS
   share sheet, `storage.persist()` on Safari.
-- **Deployment additions**: `public/_redirects` (Cloudflare Pages, Netlify) and `vercel.json`, so every unknown route
-  returns `index.html`.
+- **Deployment additions**: `public/_redirects` (Cloudflare Pages, Netlify), so every unknown route returns
+  `index.html`. (A `vercel.json` with the same rewrite was removed later: the app is hosted on Netlify.)
 
 ## Phase 6 — Sharing and sync (Supabase)
 

@@ -3,6 +3,7 @@
 [![CI](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml/badge.svg)](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml)
 
 **Live demo: [test-setlistmaster.netlify.app](https://test-setlistmaster.netlify.app/)** (it opens with an example setlist; nothing leaves your device unless you turn on sharing).
+The interface is in English by default and can be switched to Italian in Settings. The example setlist is the band's real one, so its song notes are in Italian.
 
 Scaletta is a setlist app I built for my own cover band. Paper setlists and shared chat threads fall apart on stage:
 who sings what, which guitar is in drop D, what comes next without a pause. Here the setlist, the chord charts and the
@@ -58,7 +59,7 @@ Song lines in the pictures are invented or blurred; Scaletta never ships lyrics 
 - **PDF export** of the setlist, laid out for A4.
 - **Works offline**: the whole app is cached after the first visit; data lives on the device (IndexedDB).
 - **Backup and restore** as a single JSON file.
-- **Italian and English** interface, light and dark theme.
+- **Italian and English** interface (English is the default; switch in Settings, the choice is remembered), light and dark theme.
 - **Optional sharing**: invite bandmates by link or email, with roles, and sync live between devices (needs a free Supabase project).
 
 Not included: lyrics or chords are never preloaded and nothing is scraped from the web. You add your own.
@@ -76,6 +77,7 @@ Requires Node.js 20 or newer and [pnpm](https://pnpm.io).
 pnpm install
 pnpm dev          # http://localhost:5173
 pnpm test         # unit, UI and database-rule tests
+pnpm test:e2e      # end-to-end tests in a real browser (needs `pnpm build` first; `pnpm exec playwright install chromium` once)
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # ESLint (also enforces the core/ and data/ boundaries)
 pnpm build        # production build in dist/
@@ -104,9 +106,9 @@ Data lives in IndexedDB (`scaletta` database). To start over: browser devtools >
 
 ## Deploying
 
-Any static host with HTTPS works (Netlify, Vercel, Cloudflare Pages): build command `pnpm build`, output directory `dist`.
+Any static host with HTTPS works (Netlify and Cloudflare Pages are set up out of the box): build command `pnpm build`, output directory `dist`.
 HTTPS is required for the PWA features, and every unknown path must return `index.html` (single-page app):
-`public/_redirects` does it on Netlify and Cloudflare Pages, `vercel.json` on Vercel.
+`public/_redirects` does it on Netlify and Cloudflare Pages; on another host add the equivalent rewrite rule.
 
 ## Sharing and sync (optional)
 
