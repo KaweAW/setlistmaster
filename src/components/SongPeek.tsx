@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { parseChordPro } from '../core/chordpro';
@@ -54,7 +54,12 @@ export function SongPeek({
   onDelete: () => void;
 }) {
   const t = useT();
-  const lines = useMemo(() => previewOf(song.chordpro), [song.chordpro]);
+  // Parsing a long chart takes a moment: the card springs up first, the lyrics fade in a frame later.
+  const [lines, setLines] = useState<ReturnType<typeof previewOf> | null>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLines(previewOf(song.chordpro)));
+    return () => cancelAnimationFrame(id);
+  }, [song.chordpro]);
   const [openedAt] = useState(() => Date.now());
   // The finger that opened this is still down: its release must not tap (or dismiss) what is now under it.
   const tooSoon = () => Date.now() - openedAt < 450;
@@ -70,7 +75,7 @@ export function SongPeek({
 
   return createPortal(
     <div
-      className="peek-backdrop fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-chrome/45 p-4 backdrop-blur-md motion-safe:animate-fade-in"
+      className="peek-backdrop fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-chrome/60 p-4 motion-safe:animate-fade-in sm:bg-chrome/45 sm:backdrop-blur-md"
       onClick={() => !tooSoon() && onClose()}
       onClickCapture={(e) => { if (tooSoon()) { e.preventDefault(); e.stopPropagation(); } }}
     >
@@ -91,7 +96,9 @@ export function SongPeek({
             </div>
           )}
           <div className="relative max-h-48 overflow-hidden border-t border-line px-5 py-3">
-            {lines.length > 0 ? (
+            {lines === null ? (
+              <div aria-hidden className="h-24" />
+            ) : lines.length > 0 ? (
               <div className="space-y-0.5 text-[15px] leading-snug">
                 {lines.map((l, i) =>
                   l.kind === 'label' ? (

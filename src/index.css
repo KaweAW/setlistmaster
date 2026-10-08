@@ -336,6 +336,7 @@
   .song-row:hover::before { transform: scaleY(1); }
 }
 .song-row:active { transform: scale(0.985); background: rgb(var(--c-io) / 0.08); }
+.song-row[data-pressing] { transform: scale(0.96); background: rgb(var(--c-io) / 0.12); transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), background 280ms ease; }
 .song-row[data-active]::before { transform: scaleY(1); }
 .key-disc { transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 200ms ease; }
 @media (hover: hover) { .song-row:hover .key-disc { transform: rotate(-8deg) scale(1.08); } }
@@ -350,7 +351,7 @@
 .lib-bars i:nth-child(3) { animation-delay: 0.3s; background: rgb(var(--c-lei)); }
 .lib-bars i:nth-child(4) { animation-delay: 0.45s; }
 @media (prefers-reduced-motion: reduce) {
-  .lib-search:focus-within, .song-row:hover, .song-row:active, .lib-rail button[data-on] { transform: none; }
+  .lib-search:focus-within, .song-row:hover, .song-row:active, .song-row[data-pressing], .lib-rail button[data-on] { transform: none; }
   .lib-bars i { animation: none; transform: scaleY(0.7); }
 }
 
