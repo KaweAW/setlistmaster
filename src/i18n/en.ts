@@ -316,7 +316,7 @@ export const en = {
   'song.section.basics': 'The song',
   'song.section.more': 'Tags and notes',
   'note.add': 'Add note',
-  'note.hint': 'A coloured reminder in the text, shown above the line where the cursor is. Example: “Slow intro, wait for Alex”.',
+  'note.hint': 'A coloured reminder in the text, shown above the line where the cursor is. Example: “Slow intro, wait for the drummer”.',
   'note.color': 'Note colour',
   'note.color.yellow': 'Yellow',
   'note.color.pink': 'Pink',

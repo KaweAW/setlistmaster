@@ -3,10 +3,10 @@ import { insertNote, noteDirective, parseChordPro } from '../chordpro';
 
 describe('sticky notes in the text', () => {
   it('are read in every colour, and yellow is the default', () => {
-    const { lines } = parseChordPro('{note: Slow intro}\n{note_pink: Wait for Alex: 2x}\n[Am]hello\n{note_blue: Capo 2}');
+    const { lines } = parseChordPro('{note: Slow intro}\n{note_pink: Wait for the drummer: 2x}\n[Am]hello\n{note_blue: Capo 2}');
     expect(lines.filter((l) => l.kind === 'note')).toEqual([
       { kind: 'note', color: 'yellow', text: 'Slow intro' },
-      { kind: 'note', color: 'pink', text: 'Wait for Alex: 2x' },
+      { kind: 'note', color: 'pink', text: 'Wait for the drummer: 2x' },
       { kind: 'note', color: 'blue', text: 'Capo 2' },
     ]);
     expect(lines.some((l) => l.kind === 'lyrics')).toBe(true);

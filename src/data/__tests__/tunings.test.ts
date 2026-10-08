@@ -17,10 +17,11 @@ describe('tuning format', () => {
     const a = await store.tunings.create({ bandId: band.id, name: 'whole step', notes: 'D-G-C-F-A-D', isStandard: false });
     const b = await store.tunings.create({ bandId: band.id, name: 'D G C F A D', notes: 'DGCFAD', isStandard: false });
     const free = await store.tunings.create({ bandId: band.id, name: 'Open G slide', notes: '', isStandard: false });
-    const [song, other] = (await store.songs.listBy('bandId', band.id));
-    await store.songs.update(song!.id, { tuningId: fakeStandard.id });
-    await store.songs.update(other!.id, { tuningId: free.id });
-    const item = (await store.items.listBy('songId', song!.id))[0]!;
+    const item = (await store.items.listBy('bandId', band.id))[0]!; // start from a song that is in the setlist, whatever the listing order
+    const song = (await store.songs.get(item.songId))!;
+    const other = (await store.songs.listBy('bandId', band.id)).find((x) => x.id !== song.id)!;
+    await store.songs.update(song.id, { tuningId: fakeStandard.id });
+    await store.songs.update(other.id, { tuningId: free.id });
     await store.items.update(item.id, { tuningOverrideId: standard.id }); // same as the song once merged
 
     await normalizeTunings(store, band.id);
@@ -32,8 +33,8 @@ describe('tuning format', () => {
     expect(after.filter((t) => t.notes === 'D G C F A D')).toHaveLength(1);
     expect(after.find((t) => t.notes === 'D G C F A D')?.name).toBe('Whole step down');
     expect(after.find((t) => t.id === free.id)?.name).toBe('Open G slide');
-    expect((await store.songs.get(song!.id))!.tuningId).toBe(standard.id);
-    expect((await store.songs.get(other!.id))!.tuningId).toBe(free.id);
+    expect((await store.songs.get(song.id))!.tuningId).toBe(standard.id);
+    expect((await store.songs.get(other.id))!.tuningId).toBe(free.id);
     expect((await store.items.get(item.id))!.tuningOverrideId).toBeUndefined();
     // running again changes nothing
     await normalizeTunings(store, band.id);

@@ -71,7 +71,7 @@ describe('song form', () => {
     await choose('String 4', 'C');
 
     // performers, tags, chords, notes
-    fireEvent.click(screen.getByRole('button', { name: /Kawe/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Singer 2/ }));
     const tagInput = screen.getByLabelText('Tags');
     fireEvent.change(tagInput, { target: { value: 'grunge' } });
     fireEvent.keyDown(tagInput, { key: 'Enter' });
@@ -150,14 +150,14 @@ describe('song form', () => {
 describe('settings', () => {
   it('adds a singer and blocks deleting one in use', async () => {
     const { store, band } = await setup('/settings');
-    await screen.findByText('Julie');
+    await screen.findByText('Singer 1');
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add singer' }));
     fireEvent.change(screen.getAllByLabelText('Name').at(-1)!, { target: { value: 'Alex' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Save' }).at(-1)!);
     await waitFor(async () => expect((await store.performers.listBy('bandId', band.id)).some((p) => p.name === 'Alex')).toBe(true));
 
-    const julieRow = (await screen.findByText('Julie')).closest('li')!;
+    const julieRow = (await screen.findByText('Singer 1')).closest('li')!;
     fireEvent.click(within(julieRow).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText(/Cannot delete/)).toBeTruthy();
   });

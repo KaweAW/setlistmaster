@@ -243,12 +243,12 @@ describe('sticky notes', () => {
     await screen.findByLabelText('Title');
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Pink' }));
-    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'Wait for Alex' } });
+    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'Wait for the drummer' } });
     fireEvent.click(screen.getByRole('button', { name: 'Put it in the text' }));
     const area = screen.getByLabelText('Lyrics and chords (ChordPro)') as HTMLTextAreaElement;
-    expect(area.value).toContain('{note_pink: Wait for Alex}');
+    expect(area.value).toContain('{note_pink: Wait for the drummer}');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(async () => expect((await store.songs.get(song.id))!.chordpro).toContain('{note_pink: Wait for Alex}'));
+    await waitFor(async () => expect((await store.songs.get(song.id))!.chordpro).toContain('{note_pink: Wait for the drummer}'));
     cleanup();
 
     render(
@@ -256,7 +256,7 @@ describe('sticky notes', () => {
         <DataProvider store={store}><AppRoutes /></DataProvider>
       </MemoryRouter>,
     );
-    const note = await screen.findByText('Wait for Alex');
+    const note = await screen.findByText('Wait for the drummer');
     expect(note.className).toContain('sticky-note--pink');
     expect(band.id).toBeTruthy();
   });

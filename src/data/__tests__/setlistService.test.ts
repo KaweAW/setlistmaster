@@ -80,8 +80,8 @@ describe('setlist service', () => {
   });
 
   it('duplicates a setlist without touching the original', async () => {
-    const copy = await duplicateSetlist(store, setlistId, 'Scaletta live (copy)');
-    expect(copy?.title).toBe('Scaletta live (copy)');
+    const copy = await duplicateSetlist(store, setlistId, 'Example setlist (copy)');
+    expect(copy?.title).toBe('Example setlist (copy)');
     const tree = (await loadTree(store, copy!.id))!;
     expect(tree.blocks).toHaveLength(5);
     expect(tree.items).toHaveLength(22);

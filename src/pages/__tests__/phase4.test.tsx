@@ -144,7 +144,7 @@ describe('inside a setlist', () => {
     expect(screen.getByText(/Rock|CCR/)).toBeTruthy();
     expect(screen.getByText(/1 of 22/)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Previous song' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/attacco diretto di/)).toBeTruthy(); // the transition cue
+    expect(screen.getByText(/straight into/)).toBeTruthy(); // the transition cue
     expect(screen.getByRole('link', { name: /Next: Get Back/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));

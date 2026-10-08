@@ -33,13 +33,13 @@ afterEach(() => {
 describe('home', () => {
   it('lists the setlists with their song count', async () => {
     await setup('/');
-    expect(await screen.findByText('Scaletta live')).toBeTruthy();
+    expect(await screen.findByText('Example setlist')).toBeTruthy();
     expect(screen.getByText('22 songs')).toBeTruthy();
   });
 
   it('creates a new setlist and opens it in edit mode', async () => {
     const { store, band } = await setup('/');
-    await screen.findByText('Scaletta live');
+    await screen.findByText('Example setlist');
     fireEvent.click(screen.getByRole('button', { name: 'New setlist' }));
     expect(await screen.findByRole('button', { name: /Undo/ })).toBeTruthy(); // edit toolbar
     expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('New setlist');
@@ -48,32 +48,32 @@ describe('home', () => {
 
   it('duplicates, archives and deletes', async () => {
     const { store, band } = await setup('/');
-    await screen.findByText('Scaletta live');
-    fireEvent.click(screen.getByRole('button', { name: /Actions: Scaletta live/ }));
+    await screen.findByText('Example setlist');
+    fireEvent.click(screen.getByRole('button', { name: /Actions: Example setlist/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
-    expect(await screen.findByText('Scaletta live (copy)')).toBeTruthy();
+    expect(await screen.findByText('Example setlist (copy)')).toBeTruthy();
     expect(await store.setlists.listBy('bandId', band.id)).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole('button', { name: /Actions: Scaletta live \(copy\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Actions: Example setlist \(copy\)/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
-    await waitFor(() => expect(screen.queryByText('Scaletta live (copy)')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Example setlist (copy)')).toBeNull());
     expect(screen.getByRole('button', { name: 'Show archived (1)' })).toBeTruthy();
 
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: /Actions: Scaletta live$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Actions: Example setlist$/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(async () => expect(await store.setlists.listBy('bandId', band.id)).toHaveLength(1));
   });
 });
 
 describe('setlist page', () => {
-  it('shows the prototype setlist read-only, with a computed legend', async () => {
+  it('shows the example setlist read-only, with a computed legend', async () => {
     await setup('/setlist/:id');
-    expect(await screen.findByRole('heading', { name: 'Scaletta live' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Example setlist' })).toBeTruthy();
     expect(screen.getByText('Fortunate Son')).toBeTruthy();
     expect(screen.getByText('Спокойная ночь')).toBeTruthy();
-    // legend: singers used, tuning, segue and stop all occur in the prototype
-    for (const label of ['Julie', 'Kawe', 'Coro', 'Different tuning', 'Direct segue', 'Hard stop']) {
+    // legend: singers used, tuning, segue and stop all occur in the example
+    for (const label of ['Singer 1', 'Singer 2', 'Backing vocals', 'Different tuning', 'Direct segue', 'Hard stop']) {
       expect(screen.getAllByText(new RegExp(label)).length).toBeGreaterThan(0);
     }
     // the tuning chip uses the unified format
@@ -85,7 +85,7 @@ describe('setlist page', () => {
 
   it('edits blocks with undo and redo, saving as it goes', async () => {
     const { store, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
     fireEvent.click(await screen.findByRole('button', { name: '+ Add block' }));
@@ -100,7 +100,7 @@ describe('setlist page', () => {
 
   it('renames a block when the field loses focus', async () => {
     const { store, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     const names = await screen.findAllByLabelText('Block name');
     fireEvent.change(names[0]!, { target: { value: 'Opening' } });
@@ -112,7 +112,7 @@ describe('setlist page', () => {
 
   it('edits a song in the setlist as a single step', async () => {
     const { store, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(await screen.findByRole('button', { name: /Fortunate Son/ }));
     fireEvent.change(await screen.findByLabelText(/Transition text/), { target: { value: 'New **cue**' } });
@@ -131,7 +131,7 @@ describe('setlist page', () => {
 
   it('sets the tuning of a song for this setlist with the same string picker, and drops it when it matches the song again', async () => {
     const { store, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(await screen.findByRole('button', { name: /Get Back/ }));
     await choose('String 6', 'D');
@@ -152,7 +152,7 @@ describe('setlist page', () => {
 
   it('adds a library song and a brand new song to a block', async () => {
     const { store, band, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click((await screen.findAllByRole('button', { name: '+ Add song' }))[0]!);
     const dialog = await screen.findByRole('dialog');
@@ -176,7 +176,7 @@ describe('setlist page', () => {
 
   it('removes a block together with its songs, after confirmation', async () => {
     const { store, setlist } = await setup('/setlist/:id');
-    await screen.findByRole('heading', { name: 'Scaletta live' });
+    await screen.findByRole('heading', { name: 'Example setlist' });
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     fireEvent.click((await screen.findAllByRole('button', { name: /Remove block/ }))[0]!);
