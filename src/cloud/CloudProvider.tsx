@@ -179,10 +179,13 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
   }, [api, engine, signedIn, linked, refreshRole]);
 
   // Bands I belong to but this device does not hold yet (made on another device, or added to my account): bring them in.
+  // And the other way round: a band this device still shares but my account no longer has (I deleted it, or left it, on
+  // another device: the cloud tells the *other* members, not me) stops being shared here, keeping its data as a local copy.
+  // Checked on start and whenever the app comes back to the foreground.
   useEffect(() => {
     if (!api || !signedIn) return;
     let alive = true;
-    void (async () => {
+    const load = async () => {
       try {
         const mine = await api.myBands();
         let added = false;
@@ -198,15 +201,26 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
           }
           if (alive) setRoles((r) => ({ ...r, [b.id]: b.role }));
         }
+        const inCloud = new Set(mine.map((b) => b.id));
+        for (const id of await store.sync.linkedBands()) {
+          if (inCloud.has(id)) continue;
+          engine?.unwatch(id);
+          await store.sync.unlinkBand(id);
+          added = true;
+        }
         if (alive && added) await reloadLinked();
       } catch {
         /* offline or not allowed: nothing to add */
       }
-    })();
+    };
+    void load();
+    const onVisible = () => document.visibilityState === 'visible' && void load();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       alive = false;
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [api, signedIn, store, reloadLinked]);
+  }, [api, engine, signedIn, store, reloadLinked]);
 
   // What the cloud told us while we were away: a band we were in was deleted. Its data stays here, as a local copy.
   useEffect(() => {

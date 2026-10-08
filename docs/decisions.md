@@ -488,3 +488,7 @@ and what still has to be tried by hand on real devices.
   down", so a signed-in musician with no signal on stage still sees the bands.
 - **Not a privacy wipe.** The data is out of sight, not removed from the browser's storage; a "remove shared bands from this
   device" action is a possible follow-up for shared computers.
+- **A band deleted (or left) on another device of the same account.** The cloud writes a notice for the *other* members only,
+  so my own second device never heard about it and kept the band as shared. The device now compares its shared bands
+  with `myBands()` on start and whenever the app returns to the foreground; a band my account no longer has is unshared
+  here and its data stays as a local copy, exactly as when someone else deletes it (nothing is removed without being asked).

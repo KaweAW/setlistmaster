@@ -278,6 +278,21 @@ describe('band management', () => {
     await screen.findByText(/was deleted/);
   });
 
+  it('a band I deleted on another device stops being shared here, and its data stays as a local copy', async () => {
+    const server = new FakeCloudServer();
+    const kawe = server.as(KAWE);
+    await kawe.createBand('b1', 'Band');
+    const store = createDexieStore({ dbName: `cloud-${++n}` });
+    await bootstrap(store);
+    await store.bands.create({ id: 'b1', name: 'Band' });
+    await store.sync.linkBand('b1');
+    await kawe.deleteBand('b1'); // done from the phone: this device gets no notice, it is the same person
+    expect(server.notices).toHaveLength(0);
+    mount('/', kawe, store);
+    await waitFor(async () => expect(await store.sync.linkedBands()).toEqual([]));
+    expect((await store.bands.listAll()).some((b) => b.id === 'b1')).toBe(true);
+  });
+
   it('shows a deleted-band notice to a member, who keeps a local copy', async () => {
     const server = new FakeCloudServer();
     const kawe = server.as(KAWE);
