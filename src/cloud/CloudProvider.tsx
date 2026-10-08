@@ -121,16 +121,23 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
   const flash = useDataRevision((s) => s.flash);
   useEffect(() => store.sync.onRemoteApplied(flash), [store, flash]);
 
+  // A sync round can still be running when the provider goes away (a test ending, a hot reload): it must not touch the UI then.
+  const [live] = useState(() => new Set<string>());
+  useEffect(() => {
+    live.add('mounted');
+    return () => { live.delete('mounted'); };
+  }, [live]);
+
   const engine = useMemo(
     () =>
       api
         ? new SyncEngine(store.sync, api.remote, {
-            onApplied: bump,
-            onStatus: (bandId, status) => setStatuses((s) => ({ ...s, [bandId]: status })),
+            onApplied: () => { if (live.has('mounted')) bump(); },
+            onStatus: (bandId, status) => { if (live.has('mounted')) setStatuses((s) => ({ ...s, [bandId]: status })); },
             canWrite: (bandId) => roleMap.get(bandId) !== 'viewer',
           })
         : null,
-    [api, store, bump, roleMap],
+    [api, store, bump, roleMap, live],
   );
 
   const reloadLinked = useCallback(async () => setLinked(new Set(await store.sync.linkedBands())), [store]);
