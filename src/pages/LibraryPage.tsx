@@ -80,7 +80,7 @@ export default function LibraryPage() {
   const [menu, setMenu] = useState<Song | null>(null);
   const [copying, setCopying] = useState<Song | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const press = useRef({ timer: 0, fired: false, x: 0, y: 0 });
+  const press = useRef({ timer: 0, sink: 0, fired: false, x: 0, y: 0 });
   const { data, loading, reload } = useQuery(async () => {
     const [songs, performers, tunings] = await Promise.all([
       store.songs.listBy('bandId', band.id),
@@ -120,16 +120,25 @@ export default function LibraryPage() {
     press.current.x = e.clientX;
     press.current.y = e.clientY;
     clearTimeout(press.current.timer);
+    // Like holding a chat: the row sinks a little while the finger stays, so the wait already looks like something is happening.
+    const row = e.currentTarget as HTMLElement;
+    const sink = window.setTimeout(() => row.setAttribute('data-pressing', ''), 90);
+    press.current.sink = sink;
     press.current.timer = +setTimeout(() => {
+      row.removeAttribute('data-pressing');
       press.current.fired = true;
       navigator.vibrate?.(12);
       setMenu(song);
-    }, 480);
+    }, 380);
   };
-  const endPress = () => clearTimeout(press.current.timer);
+  const endPress = (e?: ReactPointerEvent) => {
+    clearTimeout(press.current.timer);
+    clearTimeout(press.current.sink);
+    (e?.currentTarget as HTMLElement | undefined)?.removeAttribute('data-pressing');
+  };
   // A finger that drifts is scrolling, not holding.
   const movePress = (e: ReactPointerEvent) => {
-    if (Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) endPress();
+    if (Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) endPress(e);
   };
 
   async function remove(song: Song) {
@@ -272,6 +281,7 @@ export default function LibraryPage() {
                     to={`/song/${song.id}`}
                     className="song-row flex min-h-[64px] min-w-0 flex-1 select-none items-center gap-3 px-1 py-2.5 [-webkit-touch-callout:none]"
                     draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     onPointerDown={startPress(song)}
                     onPointerMove={movePress}
                     onPointerUp={endPress}
