@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'Scaletta',
         short_name: 'Scaletta',
         description: 'Setlists, chords and charts for the stage',
-        lang: 'it',
+        lang: 'en',
         start_url: '/',
         scope: '/',
         display: 'standalone',
