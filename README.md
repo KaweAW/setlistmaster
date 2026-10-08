@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml/badge.svg)](https://github.com/KaweAW/setlistmaster/actions/workflows/ci.yml)
 
-**Live demo: [test-setlistmaster.netlify.app](https://test-setlistmaster.netlify.app/)** (it opens with an example setlist; nothing leaves your device unless you turn on sharing).
+**Live demo: [test-setlistmaster.netlify.app](https://test-scaletta.netlify.app/)** (it opens with an example setlist; nothing leaves your device unless you turn on sharing).
 The interface is in English by default and can be switched to Italian in Settings. The example setlist is the band's real one, so its song notes are in Italian.
 
 Scaletta is a setlist app I built for my own cover band. Paper setlists and shared chat threads fall apart on stage:
