@@ -25,6 +25,7 @@ async function mount(shared: string[]) {
   for (const name of shared) {
     const b = await store.bands.create({ name });
     await store.sync.linkBand(b.id);
+    await new Promise((r) => setTimeout(r, 5)); // distinct creation times: the first shared band (the one the tab shows) is then always the first listed
   }
   const server = new FakeCloudServer();
   render(
@@ -66,7 +67,7 @@ describe('home band tabs', () => {
     await mount(['Wolves', 'Owls']);
     await screen.findByRole('tab', { name: /Personal/ });
     // The shared bands arrive from the (fake) cloud a moment after the first paint; a swipe before that has nowhere to go.
-    await screen.findByRole('tab', { name: /Wolves/ }, { timeout: 8000 });
+    await screen.findByRole('tab', { name: /Wolves/ });
     const main = document.querySelector('main')!;
 
     swipe(main, -120); // finger moves left: to the shared band

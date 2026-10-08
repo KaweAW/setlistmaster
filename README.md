@@ -37,7 +37,7 @@ everything live.
   </tr>
 </table>
 
-The songs in these pictures are invented examples; Scaletta never ships lyrics or chords.
+Song lines in the pictures are invented or blurred; Scaletta never ships lyrics or chords.
 
 ## Engineering notes
 
