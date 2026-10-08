@@ -22,12 +22,13 @@ const KAWE = { id: 'u-kawe@x.it', email: 'kawe@x.it' };
 async function mount(shared: string[]) {
   const store = createDexieStore({ dbName: `tabs-${++n}` });
   await bootstrap(store, 'Mine', null, 'en');
+  const server = new FakeCloudServer();
   for (const name of shared) {
     const b = await store.bands.create({ name });
+    await server.as(KAWE).createBand(b.id, name); // a shared band exists in the cloud too, or the device would let it go
     await store.sync.linkBand(b.id);
     await new Promise((r) => setTimeout(r, 5)); // distinct creation times: the first shared band (the one the tab shows) is then always the first listed
   }
-  const server = new FakeCloudServer();
   render(
     <MemoryRouter initialEntries={['/']}>
       <DataProvider store={store}>
@@ -87,9 +88,10 @@ describe('home band tabs', () => {
     const store = createDexieStore({ dbName: `tabs-${++n}` });
     await bootstrap(store, 'Mine', null, 'en');
     const b = await store.bands.create({ name: 'Wolves' });
-    await store.sync.linkBand(b.id);
     const server = new FakeCloudServer();
     const api = server.as(KAWE);
+    await api.createBand(b.id, 'Wolves');
+    await store.sync.linkBand(b.id);
     render(
       <MemoryRouter initialEntries={['/']}>
         <DataProvider store={store}><CloudProvider api={api}><AppRoutes /></CloudProvider></DataProvider>
