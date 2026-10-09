@@ -492,3 +492,13 @@ and what still has to be tried by hand on real devices.
   so my own second device never heard about it and kept the band as shared. The device now compares its shared bands
   with `myBands()` on start and whenever the app returns to the foreground; a band my account no longer has is unshared
   here and its data stays as a local copy, exactly as when someone else deletes it (nothing is removed without being asked).
+- **Removed, not kept, when I deleted it myself elsewhere.** The first version of the rule above kept every released band as a
+  local copy, which left stray duplicates on the other devices of someone who had deliberately deleted the band. Now
+  the copy is removed, except when it still holds changes that never reached the cloud (`pendingCount > 0`): then it stays as
+  a local band. A band someone *else* deleted still arrives as a notice and is kept as a local copy, because there the
+  member did not choose it.
+- **A plain local copy of a band of my account is shared again** (same id in `myBands()`), so a device that lost the link
+  (older versions, a cleared database) goes back to showing the band under "Your bands" instead of "Only on this device".
+- **Looking for a new version of the app.** A home-screen PWA that stays in the background is never reloaded, so the browser
+  may not check for a new service worker for days and an old build keeps running. The app now asks for an update when it comes
+  back to the foreground and every hour; the update is still applied only when the person accepts it (NoticeBar).

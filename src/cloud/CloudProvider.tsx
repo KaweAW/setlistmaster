@@ -187,7 +187,9 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
 
   // Bands I belong to but this device does not hold yet (made on another device, or added to my account): bring them in.
   // And the other way round: a band this device still shares but my account no longer has (I deleted it, or left it, on
-  // another device: the cloud tells the *other* members, not me) stops being shared here, keeping its data as a local copy.
+  // another device: the cloud tells the *other* members, not me) is let go here too: its copy is removed, unless it holds
+  // changes that never reached the cloud, in which case it stays as a local band so nothing is lost.
+  // A band of my account that this device holds as a plain local copy is shared again.
   // Checked on start and whenever the app comes back to the foreground.
   useEffect(() => {
     if (!api || !signedIn) return;
@@ -205,6 +207,10 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
             const local = await store.bands.get(b.id);
             // The creator may have renamed the band or changed its notes elsewhere.
             if (local && (local.name !== b.name || (local.notes ?? '') !== b.notes)) await store.bands.update(b.id, { name: b.name, notes: b.notes });
+            if (!(await store.sync.linkedBands()).includes(b.id)) {
+              await store.sync.linkBand(b.id); // a copy kept from before: it follows the cloud again
+              added = true;
+            }
           }
           if (alive) setRoles((r) => ({ ...r, [b.id]: b.role }));
         }
@@ -212,7 +218,12 @@ export function CloudProvider({ api: injected, children }: { api?: CloudApi | nu
         for (const id of await store.sync.linkedBands()) {
           if (inCloud.has(id)) continue;
           engine?.unwatch(id);
+          const unsent = await store.sync.pendingCount(id);
           await store.sync.unlinkBand(id);
+          if (unsent === 0) {
+            await removeLocalBand(store, id);
+            if (useUiStore.getState().activeBandId === id) useUiStore.getState().setActiveBandId(null);
+          }
           added = true;
         }
         if (alive && added) await reloadLinked();
