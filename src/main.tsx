@@ -28,5 +28,13 @@ createRoot(document.getElementById('root')!).render(
 const updateServiceWorker = registerSW({
   onNeedRefresh: () => usePwaStore.setState({ needRefresh: true }),
   onOfflineReady: () => usePwaStore.setState({ offlineReady: true }),
+  // A home-screen app that stays in the background is not reloaded, so the browser may not look for a new version for days:
+  // look when the app comes back to the foreground and once an hour while it is open.
+  onRegisteredSW: (_url, registration) => {
+    if (!registration) return;
+    const check = () => { if (navigator.onLine) void registration.update().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
+    setInterval(check, 60 * 60 * 1000);
+  },
 });
 usePwaStore.setState({ applyUpdate: () => void updateServiceWorker(true) });

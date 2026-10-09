@@ -278,19 +278,38 @@ describe('band management', () => {
     await screen.findByText(/was deleted/);
   });
 
-  it('a band I deleted on another device stops being shared here, and its data stays as a local copy', async () => {
+  it('a band I deleted on another device is removed here too, unless it holds changes that never went up', async () => {
+    const server = new FakeCloudServer();
+    const kawe = server.as(KAWE);
+    await kawe.createBand('b1', 'Band');
+    await kawe.createBand('b2', 'Unsent');
+    const store = createDexieStore({ dbName: `cloud-${++n}` });
+    await bootstrap(store);
+    await store.bands.create({ id: 'b1', name: 'Band' });
+    await store.sync.linkBand('b1');
+    await store.bands.create({ id: 'b2', name: 'Unsent' });
+    await store.sync.linkBand('b2', { upload: true });
+    await store.performers.create({ bandId: 'b2', name: 'Someone', color: '#000000', symbol: '♪' }); // not sent yet
+    await kawe.deleteBand('b1'); // done from the phone: this device gets no notice, it is the same person
+    await kawe.deleteBand('b2');
+    expect(server.notices).toHaveLength(0);
+    // a band that is gone from the cloud takes no pushes: what was typed here stays unsent
+    const unreachable: CloudApi = { ...kawe, remote: Object.assign(Object.create(kawe.remote), { push: () => Promise.reject(new Error('gone')) }) };
+    mount('/', unreachable, store);
+    await waitFor(async () => expect(await store.sync.linkedBands()).toEqual([]));
+    await waitFor(async () => expect((await store.bands.listAll()).some((b) => b.id === 'b1')).toBe(false));
+    expect((await store.bands.listAll()).some((b) => b.id === 'b2')).toBe(true); // had unsent changes: kept as a local band
+  });
+
+  it('a band of my account held here as a plain local copy is shared again', async () => {
     const server = new FakeCloudServer();
     const kawe = server.as(KAWE);
     await kawe.createBand('b1', 'Band');
     const store = createDexieStore({ dbName: `cloud-${++n}` });
     await bootstrap(store);
-    await store.bands.create({ id: 'b1', name: 'Band' });
-    await store.sync.linkBand('b1');
-    await kawe.deleteBand('b1'); // done from the phone: this device gets no notice, it is the same person
-    expect(server.notices).toHaveLength(0);
+    await store.bands.create({ id: 'b1', name: 'Band' }); // never linked on this device
     mount('/', kawe, store);
-    await waitFor(async () => expect(await store.sync.linkedBands()).toEqual([]));
-    expect((await store.bands.listAll()).some((b) => b.id === 'b1')).toBe(true);
+    await waitFor(async () => expect(await store.sync.linkedBands()).toEqual(['b1']));
   });
 
   it('shows a deleted-band notice to a member, who keeps a local copy', async () => {
