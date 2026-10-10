@@ -32,7 +32,7 @@
 .pp-page {
   position: relative;
   width: 210mm;
-  height: 297mm;
+  height: var(--pp-sheet, 297mm);
   margin: 12px auto;
   padding: 14mm 15mm 12mm 20mm; /* 5mm of the left padding is the gap after the strips */
   overflow: hidden;

@@ -3,6 +3,7 @@ import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps
 import { paginateBlocks, type PageChunk } from '../core/paginate';
 import type { Performer, Song, Tuning } from '../core/types';
 import { buildLookups, PosterBlockHeading, PosterHeader, PosterRow } from './setlistParts';
+import { pageHeightMm } from '../lib/sheet';
 import '../print.css';
 
 const PAGE_PX = 96 / 25.4; // CSS pixels per millimetre
@@ -25,6 +26,7 @@ export function PrintPages({ tree, songs, performers, tunings }: Props) {
   const rowsOf = (blockId: string) =>
     itemsOfBlock(tree, blockId).filter((item) => lookups.songs.has(item.songId));
 
+  const [sheetMm] = useState(() => pageHeightMm()); // 297 on most browsers, shorter on iOS (see lib/sheet)
   const measureRef = useRef<HTMLDivElement>(null);
   const [plan, setPlan] = useState<PageChunk[][] | null>(null);
   const [scale, setScale] = useState(() => scaleFor(window.innerWidth));
@@ -77,7 +79,7 @@ export function PrintPages({ tree, songs, performers, tunings }: Props) {
   return (
     <>
       <div ref={measureRef} className="pp-measure" aria-hidden>
-        <div data-m="page" style={{ height: '271mm' }} /> {/* 297 - 14 - 12 */}
+        <div data-m="page" style={{ height: `${sheetMm - 26}mm` }} /> {/* the page minus 14 mm above and 12 mm below */}
         <div data-m="safety" style={{ height: '2mm' }} />
         <div data-m="gap" style={{ height: '7mm' }} />
         <div data-m="header">{header}</div>
@@ -101,7 +103,8 @@ export function PrintPages({ tree, songs, performers, tunings }: Props) {
           style={
             {
               '--pp-k': scale,
-              '--pp-h': `calc(${pageCount} * 297mm + ${pageCount + 1} * 12px)`,
+              '--pp-sheet': `${sheetMm}mm`,
+              '--pp-h': `calc(${pageCount} * ${sheetMm}mm + ${pageCount + 1} * 12px)`,
             } as React.CSSProperties
           }
         >

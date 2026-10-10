@@ -502,3 +502,16 @@ and what still has to be tried by hand on real devices.
 - **Looking for a new version of the app.** A home-screen PWA that stays in the background is never reloaded, so the browser
   may not check for a new service worker for days and an old build keeps running. The app now asks for an update when it comes
   back to the foreground and every hour; the update is still applied only when the person accepts it (NoticeBar).
+
+## Phase 26 — Printing from an iPhone
+
+- **Symptom.** From an iPhone every page came out followed by an almost empty sheet (a 2-page setlist became 4 sheets, the
+  second of each pair showing only a sliver of the page frame).
+- **Cause.** iOS ignores `@page { margin: 0 }`: it shrinks the page to the width and keeps a band at the top and bottom for its
+  own header and footer (address, date). A 297 mm page no longer fits the printable area (about 287 mm at that scale) and
+  its last millimetres spill onto the next sheet. Reproduced with headless Chromium by forcing page margins and the same
+  shrink (4 sheets), and fixed the same way (2 sheets).
+- **Fix.** On iOS (`lib/sheet.ts`: iPhone, iPad, and iPadOS posing as a Mac) the page is 280 mm tall instead of 297 mm. The
+  height drives the preview, the measuring copy and the pagination alike, so the pages still hold exactly what fits. Other
+  browsers keep the full A4 sheet. The cost on iOS is a plain strip at the bottom of each sheet.
+- **To try by hand:** printing on a real iPhone and iPad (the margins are device and iOS-version dependent).
