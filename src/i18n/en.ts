@@ -186,6 +186,7 @@ export const en = {
   'chart.controls': 'Display controls',
   'chart.diagrams': 'Chord diagrams',
   'chart.print': 'Print',
+  'chart.scrollByLength': 'Scroll for the song length ({d})',
   'chart.noFingering': 'No fingering for {name}. Write one at the top of the text, for example “{name}  x02210”.',
   'chart.fingeringWritten': 'Fingering from the text',
   'chart.fingeringReady': 'Common fingering',

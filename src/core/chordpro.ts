@@ -1,4 +1,4 @@
-import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from './chordsOverWords';
+import { chordsOverWordsToChordPro, isChordLine, looksLikeChordsOverWords } from './chordsOverWords';
 import ChordSheetJS from 'chordsheetjs';
 import { extractFingerings } from './fingerings';
 import { isChord } from './chords';
@@ -260,7 +260,11 @@ function headingOf(line: string): string | null {
  * {start_of_…: Label} block that ends before the next heading. Text that already uses blocks is left as it is.
  */
 export function structureSections(source: string): { text: string; count: number } {
-  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  // "[Post Chorus] F  C": the label and the chords of its first line are two lines.
+  const lines = source.replace(/\r\n?/g, '\n').split('\n').flatMap((line) => {
+    const m = /^\s*\[([^\]]+)\]\s+(\S.*)$/.exec(line);
+    return m && !isChordLine(m[1]!) && isChordLine(m[2]!) && headingOf(`[${m[1]}]`) ? [`[${m[1]}]`, m[2]!] : [line];
+  });
   const out: string[] = [];
   let open: string | null = null;
   let count = 0;

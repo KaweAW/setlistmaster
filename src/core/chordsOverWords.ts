@@ -10,6 +10,8 @@ const SECTION_WORDS =
   'strofa|verso|versi|ritornello|inciso|ponte|finale|introduzione|assolo|ripresa';
 const SECTION_ONLY = new RegExp(`^\\s*[\\[(]?\\s*(?:${SECTION_WORDS})\\b[^\\]\\n):]*[\\])]?\\s*:?\\s*$`, 'i');
 const SECTION_THEN_CHORDS = new RegExp(`^\\s*[\\[(]?\\s*((?:${SECTION_WORDS})\\b[^\\]\\n):]*)[\\])]?\\s*:\\s*(\\S.*)$`, 'i');
+/** "[Post Chorus] F  C": a bracketed label with the chords of its first line right after it (no colon needed). */
+const BRACKET_THEN_CHORDS = /^\s*\[([^\]]+)\]\s*(\S.*)$/;
 const BRACKET_LABEL = /^\s*\[([^\]]+)\]\s*:?\s*$/;
 const DIRECTIVE = /^\s*\{[^}]*\}\s*$/;
 const FILLER = /^(\||\|\||\/|-|%|x\d+|\(x\d+\)|\(?x\d+\)?)$/i;
@@ -94,8 +96,8 @@ export function chordsOverWordsToChordPro(input: string): string {
       continue;
     }
 
-    const labelWithChords = SECTION_THEN_CHORDS.exec(line);
-    if (labelWithChords && isChordLine(labelWithChords[2]!)) {
+    const labelWithChords = SECTION_THEN_CHORDS.exec(line) ?? BRACKET_THEN_CHORDS.exec(line);
+    if (labelWithChords && !isChordLine(labelWithChords[1]!) && isChordLine(labelWithChords[2]!)) {
       comment(labelWithChords[1]!.trim());
       out.push(chordsOnly(labelWithChords[2]!));
       continue;

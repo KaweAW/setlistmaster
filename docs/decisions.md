@@ -539,4 +539,9 @@ and what still has to be tried by hand on real devices.
 - **Printing a song:** "Print" in the display controls prints the sheet alone with its diagrams. There is no two-column
   layout: a song scrolls, and with columns the follow-along highlight jumped from the first section to the middle one
   because it assumes the sections follow each other down the page.
+- **"[Post Chorus] F":** a bracketed label with the chords of its first line right after it (no colon) is split into the
+  heading and the chord line, instead of being shown as lyrics with escaped brackets.
+- **Auto-scroll for the song length:** when a song has a length, "Scroll for the song length" makes the page reach the
+  bottom as the song ends (distance left / seconds), instead of the 1–10 speed level. Syncing with a YouTube video is not
+  done: it needs a link per song, the embedded player and a network at the gig.
 - **To try by hand:** printing a song from Safari and iOS; reading the diagrams at arm's length in stage mode.

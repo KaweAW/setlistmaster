@@ -80,6 +80,10 @@ export interface SongToolbarProps {
   diagrams?: boolean;
   onDiagrams?: (on: boolean) => void;
   onPrint?: () => void;
+  /** The song has a length: auto-scroll can take exactly that long. */
+  lengthLabel?: string;
+  byLength?: boolean;
+  onByLength?: (on: boolean) => void;
 }
 
 /**
@@ -196,11 +200,16 @@ export function SongToolbar(p: SongToolbarProps) {
                 />
                 <Slider label={t('chart.textSizeSlider')} value={p.fontSize} min={12} max={48} step={2} onChange={p.onFontSize} />
               </div>
-              {(p.onDiagrams || p.onPrint) && (
+              {(p.onDiagrams || p.onPrint || p.onByLength) && (
                 <div className="col-span-full flex flex-wrap items-center gap-2">
                   {p.onDiagrams && (
                     <button type="button" aria-pressed={!!p.diagrams} onClick={() => p.onDiagrams!(!p.diagrams)} className={`h-10 rounded-full px-4 text-sm font-semibold transition-colors ${p.diagrams ? 'bg-chrome-ink text-chrome' : 'bg-white/10 hover:bg-white/20'}`}>
                       {t('chart.diagrams')}
+                    </button>
+                  )}
+                  {p.onByLength && (
+                    <button type="button" aria-pressed={!!p.byLength} onClick={() => p.onByLength!(!p.byLength)} className={`h-10 rounded-full px-4 text-sm font-semibold transition-colors ${p.byLength ? 'bg-chrome-ink text-chrome' : 'bg-white/10 hover:bg-white/20'}`}>
+                      {t('chart.scrollByLength', { d: p.lengthLabel ?? '' })}
                     </button>
                   )}
                   {p.onPrint && (

@@ -230,7 +230,9 @@ function SongView({
   const swipe = useSwipe(onSwipe, mode === 'chords');
 
   const stop = useCallback(() => setPlaying(false), []);
-  useAutoScroll(playing, scrollLevel, stop);
+  const scrollByLength = useUiStore((s) => s.scrollByLength);
+  const setScrollByLength = useUiStore((s) => s.setScrollByLength);
+  useAutoScroll(playing, scrollLevel, stop, scrollByLength ? song.durationSec : undefined);
   // Never let the screen sleep on stage, nor while the page is scrolling by itself.
   const wake = useWakeLock(stage || playing);
 
@@ -446,6 +448,7 @@ function SongView({
         onNext={() => rememberSongSlide('right')}
         diagrams={showDiagrams}
         onDiagrams={setShowDiagrams}
+        {...(song.durationSec ? { lengthLabel: formatDuration(song.durationSec), byLength: scrollByLength, onByLength: setScrollByLength } : {})}
         onPrint={() => { setControlsOpen(false); setPlaying(false); requestAnimationFrame(() => window.print()); }}
         {...(nextSong && next ? { next: { title: nextSong.title, to: `/setlist/${setlistId}/song/${next.id}` } } : {})}
       />

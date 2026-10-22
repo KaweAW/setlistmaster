@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartChords, parseChordPro } from '../chordpro';
+import { chartChords, chartSections, parseChordPro } from '../chordpro';
 import { chordsOverWordsToChordPro } from '../chordsOverWords';
 import { MAX_SCROLL_LEVEL, MIN_SCROLL_LEVEL, scrollSpeed, swipeDirection } from '../autoscroll';
 
@@ -49,6 +49,14 @@ describe('parseChordPro', () => {
 });
 
 describe('chordsOverWordsToChordPro', () => {
+  it('reads a bracketed label with chords on the same line ("[Post Chorus] F") as a section, not as lyrics', () => {
+    const out = chordsOverWordsToChordPro('[Post Chorus] F  C\n(hold)\n\n[Verse 2]\nF#m\nHello');
+    expect(out).toContain('{comment: Post Chorus}\n[F] [C]');
+    expect(out).not.toContain('\\[');
+    const chart = parseChordPro('[Verse 1]\nAm\nHi\n\n[Post Chorus] F  C\n(hold)\n\n[Verse 2]\nF#m\nHello');
+    expect(chartSections(chart).map((x) => x.section.text)).toEqual(['Verse 1', 'Post Chorus', 'Verse 2']);
+  });
+
   it('places each chord at its column over the lyrics', () => {
     const out = chordsOverWordsToChordPro('Em            G\nBlack hole sun, won\'t you come\nC        D/F#\nand wash away the rain');
     expect(out).toBe("[Em]Black hole sun[G], won't you come\n[C]and wash [D/F#]away the rain");
