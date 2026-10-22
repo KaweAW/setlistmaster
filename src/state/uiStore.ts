@@ -23,6 +23,12 @@ interface UiState {
   lastBackupAt: number | null;
   firstSeenAt: number | null;
   backupSnoozedUntil: number | null;
+  /** Chord diagrams above the sheet. */
+  showDiagrams: boolean;
+  /** Auto-scroll takes exactly the length of the song (when it has one) instead of the speed level. */
+  scrollByLength: boolean;
+  setScrollByLength: (on: boolean) => void;
+  setShowDiagrams: (on: boolean) => void;
   /** The instrument I play (a song opens on its part). Mirrored on the account when signed in; this is the offline copy. */
   myInstruments: Record<string, string>;
   setMyInstrument: (bandId: string, instrumentId: string | null) => void;
@@ -58,6 +64,10 @@ export const useUiStore = create<UiState>()(
       firstSeenAt: null,
       backupSnoozedUntil: null,
       myInstruments: {},
+      showDiagrams: true,
+      scrollByLength: false,
+      setScrollByLength: (scrollByLength) => set({ scrollByLength }),
+      setShowDiagrams: (showDiagrams) => set({ showDiagrams }),
       setMyInstrument: (bandId, instrumentId) =>
         set((s) => {
           const next = { ...s.myInstruments };
@@ -86,6 +96,8 @@ export const useUiStore = create<UiState>()(
         songFontSize: s.songFontSize,
         stageFontSize: s.stageFontSize,
         scrollLevel: s.scrollLevel,
+        showDiagrams: s.showDiagrams,
+        scrollByLength: s.scrollByLength,
         lastBackupAt: s.lastBackupAt,
         firstSeenAt: s.firstSeenAt,
         backupSnoozedUntil: s.backupSnoozedUntil,

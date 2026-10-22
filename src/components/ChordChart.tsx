@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
-import { transposeChord, type Accidentals } from '../core/chords';
+import { isChord, transposeChord, type Accidentals } from '../core/chords';
 import { chartSections, type ChartLine, type ParsedChart, type SectionKind } from '../core/chordpro';
 import { calmDevice } from '../hooks/useHomeMotion';
 import { isTabLine } from '../core/chordpro';
@@ -50,6 +50,7 @@ export function ChordChart({
   stage = false,
   onCurrentSection,
   focus = true,
+  onChord,
 }: {
   chart: ParsedChart;
   semitones: number;
@@ -61,6 +62,8 @@ export function ChordChart({
   onCurrentSection?: (index: number) => void;
   /** Fade the sections that are not being read. Off in the editor's preview, where nothing scrolls the sheet. */
   focus?: boolean;
+  /** Chords become buttons that report the (transposed) chord tapped: the page shows its diagram. */
+  onChord?: (chord: string) => void;
 }) {
   const t = useT();
   const root = useRef<HTMLDivElement>(null);
@@ -99,9 +102,22 @@ export function ChordChart({
           <div key={index} className="flex flex-wrap">
             {line.segments.map((segment, i) => (
               <span key={i} className="inline-flex flex-col">
-                <span className={`mr-[0.5em] min-h-[1.25em] whitespace-pre font-bold leading-tight text-chord ${stage ? 'chord-pill' : ''}`}>
-                  {segment.chord ? show(segment.chord) : '\u00a0'}
-                </span>
+                {segment.chord && onChord && isChord(segment.chord) ? (
+                  <span className="mr-[0.5em] min-h-[1.25em] leading-tight">
+                    <button
+                      type="button"
+                      data-chord={show(segment.chord)}
+                      onClick={() => onChord(show(segment.chord!))}
+                      className={`chord-tap whitespace-pre rounded font-bold text-chord ${stage ? 'chord-pill' : ''}`}
+                    >
+                      {show(segment.chord)}
+                    </button>
+                  </span>
+                ) : (
+                  <span className={`mr-[0.5em] min-h-[1.25em] whitespace-pre leading-tight ${segment.chord && !isChord(segment.chord) ? 'text-soft' : `font-bold text-chord ${stage ? 'chord-pill' : ''}`}`}>
+                    {segment.chord ? show(segment.chord) : '\u00a0'}
+                  </span>
+                )}
                 <span className="whitespace-pre-wrap">{segment.lyrics === '' ? '\u00a0' : segment.lyrics}</span>
               </span>
             ))}

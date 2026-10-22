@@ -7,6 +7,8 @@ import type { OpContext, SetlistTree } from '../core/setlistOps';
 import type { Performer, Song, Tuning } from '../core/types';
 import { useData } from '../data/DataProvider';
 import { loadTree, persistTree } from '../data/setlistService';
+import { tuningIdFor } from '../data/tunings';
+import { STANDARD_STRINGS } from '../core/tuning';
 
 export type EditorStatus = 'loading' | 'missing' | 'ready';
 
@@ -113,7 +115,8 @@ export function useSetlistEditor(setlistId: string | undefined) {
         title,
         artist,
         capo: 0,
-        tuningId: standard?.id ?? '',
+        // a band made or joined later may hold no tuning yet: make the standard one
+        tuningId: standard?.id ?? (await tuningIdFor(store, band.id, STANDARD_STRINGS)),
         defaultPerformerIds: [], instrumentIds: [],
         chordpro: '',
         notes: '',

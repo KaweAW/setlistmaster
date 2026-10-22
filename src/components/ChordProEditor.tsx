@@ -1,18 +1,34 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { accidentalsForKey, diatonicChords } from '../core/chords';
-import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from '../core/chordsOverWords';
+import { isChordLine, isRealChord, looksLikeChordsOverWords } from '../core/chordsOverWords';
+import { chartDiagrams } from '../core/diagrams';
+import { fingeringOfLine } from '../core/fingerings';
+import { DiagramStrip } from './ChordDiagrams';
 import { TAB_TEMPLATES, chartStats, insertChord, insertSection, guessSections, parseChordPro, structureSections, type InsertableKind } from '../core/chordpro';
 import { useT, type MessageKey } from '../i18n';
 import { ChordChart } from './ChordChart';
 import { Segmented } from './Segmented';
 import { Select } from './Select';
 
-/** The text with its ChordPro marks coloured: {directives} in violet, [chords] in the chord colour. Drawn behind a see-through textarea. */
+/**
+ * The text coloured, drawn behind a see-through textarea: {directives} and fingering lines in violet, [chords] and the chords
+ * of a "chords above the words" line in the chord colour. Every character keeps its place, so the two layers line up.
+ */
 function highlight(source: string): ReactNode[] {
-  return source.split(/(\{[^}\n]*\}|\[[^\]\n]*\])/g).map((piece, i) => {
-    if (piece.startsWith('{') && piece.endsWith('}')) return <span key={i} className="font-semibold text-coro">{piece}</span>;
-    if (piece.startsWith('[') && piece.endsWith(']')) return <span key={i} className="font-bold text-chord">{piece}</span>;
-    return piece;
+  return source.split('\n').flatMap((line, n) => {
+    const out: ReactNode[] = n > 0 ? ['\n'] : [];
+    if (fingeringOfLine(line)) {
+      out.push(<span key={n} className="font-semibold text-coro">{line}</span>);
+    } else if (isChordLine(line)) {
+      out.push(...line.split(/(\S+)/).map((piece, i) => (isRealChord(piece) ? <span key={`${n}-${i}`} className="font-bold text-chord">{piece}</span> : piece)));
+    } else {
+      out.push(...line.split(/(\{[^}\n]*\}|\[[^\]\n]*\])/g).map((piece, i) => {
+        if (piece.startsWith('{') && piece.endsWith('}')) return <span key={`${n}-${i}`} className="font-semibold text-coro">{piece}</span>;
+        if (piece.startsWith('[') && piece.endsWith(']')) return <span key={`${n}-${i}`} className="font-bold text-chord">{piece}</span>;
+        return piece;
+      }));
+    }
+    return out;
   });
 }
 
@@ -51,9 +67,29 @@ export function ChordProEditor({
   const own = useRef<HTMLTextAreaElement>(null);
   const area = areaRef ?? own;
   const [view, setView] = useState<'write' | 'preview'>('write');
-  const [split, setSplit] = useState<{ before: string; count: number; guessed?: boolean; chords?: boolean } | null>(null);
+  const [split, setSplit] = useState<{ before: string; count: number; guessed?: boolean } | null>(null);
   const chart = useMemo(() => parseChordPro(value), [value]);
   const stats = chartStats(value);
+  const diagrams = useMemo(() => chartDiagrams(value, chart, (c) => c, false), [value, chart]);
+  // Lines are never wrapped: chords written above the words must stay over their syllable. The box scrolls sideways instead.
+  const longest = useMemo(() => Math.max(20, ...value.split('\n').map((l) => l.replace(/\t/g, '    ').length)), [value]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  function load(text: string) {
+    setSplit(null);
+    if (!detect(text)) onChange(text);
+  }
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) return setNotice(t('editor.pasteEmpty'));
+      setNotice(null);
+      load(text);
+    } catch {
+      setNotice(t('editor.pasteDenied'));
+      area.current?.focus();
+    }
+  }
   const chords = diatonicChords(songKey);
 
   // The textarea grows with its text, so the coloured copy behind it lines up exactly and there is no inner scrollbar.
@@ -71,17 +107,18 @@ export function ChordProEditor({
       area.current?.setSelectionRange(r.cursor, r.cursor);
     });
   }
-  /** Puts chords written above the words into the text, splits it into sections (by its titles, or by a guess) and applies it. */
+  /**
+   * Splits the text into sections (by its titles, or by a guess) and applies it. Chords written above the words stay where
+   * they are, as in Cifra: the sheet reads that layout as it is, and musicians edit it more easily than [inline] chords.
+   * (The "Convert" button still turns it into ChordPro for whoever wants it.)
+   */
   function detect(text: string) {
-    const chords = looksLikeChordsOverWords(text);
-    const base = chords ? chordsOverWordsToChordPro(text) : text;
-    let r = structureSections(base);
+    let r = structureSections(text);
     const guessed = r.count === 0;
-    if (guessed) r = guessSections(base);
-    if (r.count === 0 && !chords) return false;
-    const next = r.count === 0 ? base : r.text;
-    setSplit({ before: text, count: r.count, guessed: guessed && r.count > 0, chords });
-    onChange(next);
+    if (guessed) r = guessSections(text);
+    if (r.count === 0) return false;
+    setSplit({ before: text, count: r.count, guessed });
+    onChange(r.text);
     return true;
   }
   const at = () => area.current?.selectionStart ?? value.length;
@@ -119,6 +156,19 @@ export function ChordProEditor({
               {t('editor.detect')}
             </button>
             <span id={`${id}-hint`} className="sr-only">{t('editor.detectHint')}</span>
+            <button type="button" className={chip} onClick={() => void pasteFromClipboard()}>{t('editor.paste')}</button>
+            <button type="button" className={chip} onClick={() => fileInput.current?.click()}>{t('editor.openTxt')}</button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".txt,.pro,.cho,.chopro,.crd,text/plain"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void file.text().then(load);
+              }}
+            />
             {extra}
           </div>
           {chords.length > 0 && (
@@ -136,11 +186,16 @@ export function ChordProEditor({
               ))}
             </div>
           )}
+          {notice && (
+            <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-md bg-lei/10 px-3 py-2 text-sm text-ink">
+              <span>{notice}</span>
+              <button type="button" aria-label={t('controls.dismiss')} className="px-1 text-soft" onClick={() => setNotice(null)}>×</button>
+            </div>
+          )}
           {split && (
             <div role="status" className="mb-2 flex items-center justify-between gap-2 rounded-md bg-io/10 px-3 py-2 text-sm text-ink">
               <span>
-                {split.chords && `${t('editor.chordsPlaced')}${split.count > 0 ? ' · ' : ''}`}
-                {split.count === 0 ? (split.chords ? '' : t('editor.detectNone')) : split.guessed ? t('editor.detectedGuess', { n: split.count }) : t('editor.detected', { n: split.count })}
+                {split.count === 0 ? t('editor.detectNone') : split.guessed ? t('editor.detectedGuess', { n: split.count }) : t('editor.detected', { n: split.count })}
               </span>
               <span className="flex gap-2">
                 {split.count > 0 && (
@@ -150,8 +205,9 @@ export function ChordProEditor({
               </span>
             </div>
           )}
-          <div className="editor-box relative rounded-md border border-line bg-surface focus-within:border-io focus-within:ring-2 focus-within:ring-io/30">
-            <pre aria-hidden className="editor-text pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words">{highlight(value)}{'\n'}</pre>
+          <div className="editor-box relative overflow-x-auto rounded-md border border-line bg-surface focus-within:border-io focus-within:ring-2 focus-within:ring-io/30">
+            <div className="relative min-w-full" style={{ width: `calc(${longest + 2}ch + 1.5rem)` }}>
+            <pre aria-hidden className="editor-text pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre">{highlight(value)}{'\n'}</pre>
             <textarea
               id={id}
               ref={area}
@@ -170,13 +226,40 @@ export function ChordProEditor({
                 const merged = value.slice(0, a) + pasted + value.slice(b);
                 if (!detect(merged)) onChange(merged);
               }}
-              className="editor-text relative block w-full resize-none overflow-hidden bg-transparent text-transparent caret-ink focus:outline-none"
+              wrap="off"
+              autoCapitalize="off"
+              autoComplete="off"
+              className="editor-text relative block w-full resize-none overflow-hidden whitespace-pre bg-transparent text-transparent caret-ink focus:outline-none"
             />
+            </div>
           </div>
           <div className="mt-1 flex items-start justify-between gap-3 text-xs text-soft">
             <span>{hint}</span>
             <span className="shrink-0 tabular-nums">{t('editor.stats', { lines: stats.lines, chords: stats.chords })}</span>
           </div>
+          {(diagrams.entries.length > 0 || diagrams.bad.length > 0) && (
+            <div className="mt-2 space-y-1.5 text-xs" aria-live="polite">
+              {diagrams.bad.length > 0 && (
+                <p className="font-semibold text-lei">
+                  {t('editor.badFingering', { list: diagrams.bad.map((b) => `${b.name} ${b.text} (${b.count})`).join('; ') })}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-1.5" role="list" aria-label={t('editor.chordsUsed')}>
+                <span className="mr-1 text-soft">{t('editor.fingerings', { n: diagrams.writtenCount })} ·</span>
+                {diagrams.entries.map((e) => (
+                  <span
+                    key={e.name}
+                    role="listitem"
+                    title={e.frets ? undefined : t('editor.noDiagram')}
+                    className={`rounded-full px-2 py-0.5 font-mono font-bold ${e.frets ? 'bg-chord/10 text-chord' : 'bg-lei/10 text-lei'}`}
+                  >
+                    {e.name}
+                  </span>
+                ))}
+              </div>
+              {diagrams.writtenCount === 0 && <p className="text-soft">{t('editor.fingeringHint')}</p>}
+            </div>
+          )}
         </div>
 
         <div className={`min-w-0 ${view === 'write' ? 'hidden lg:block' : ''}`}>
@@ -184,7 +267,10 @@ export function ChordProEditor({
             {value.trim() === '' ? (
               <p className="py-8 text-center text-sm text-soft">{t('editor.previewEmpty')}</p>
             ) : (
-              <ChordChart chart={chart} semitones={0} accidentals={accidentalsForKey(songKey)} fontSize={16} focus={false} />
+              <>
+                <DiagramStrip entries={diagrams.entries} className="mb-3 border-b border-dashed border-line pb-3" />
+                <ChordChart chart={chart} semitones={0} accidentals={accidentalsForKey(songKey)} fontSize={16} focus={false} />
+              </>
             )}
           </div>
         </div>

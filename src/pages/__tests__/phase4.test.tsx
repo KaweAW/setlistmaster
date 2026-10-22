@@ -51,7 +51,7 @@ afterEach(() => {
 
 const openControls = () => fireEvent.click(screen.getByRole('button', { name: 'Display controls' }));
 /** The chords printed above the words (not the tuning pill, which also shows note names). */
-const chordsShown = () => [...document.querySelectorAll('main .text-chord')].map((e) => e.textContent).filter((c) => c?.trim());
+const chordsShown = () => [...document.querySelectorAll('main .chart .text-chord')].map((e) => e.textContent).filter((c) => c?.trim());
 
 describe('song page', () => {
   it('shows chords above the words, sections and comments', async () => {

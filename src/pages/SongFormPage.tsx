@@ -278,7 +278,8 @@ function SongForm({
         capo,
         tempo: tempoValue,
         durationSec: parsedDuration.seconds,
-        tuningId: tuningTouched ? await tuningIdFor(store, band.id, strings) : tuningId,
+        // A band made or joined after the first one may hold no tuning yet: then the picked strings make (or find) it.
+        tuningId: tuningTouched || !tuningId ? await tuningIdFor(store, band.id, strings) : tuningId,
         defaultPerformerIds: performerIds,
         instrumentIds,
         chordpro,
@@ -316,7 +317,8 @@ function SongForm({
         }
       }
       goBack();
-    } catch {
+    } catch (error) {
+      console.error('Saving the song failed', error);
       setMessage(t('song.saveError'));
       setSaving(false);
     }

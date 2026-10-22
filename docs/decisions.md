@@ -515,3 +515,33 @@ and what still has to be tried by hand on real devices.
   height drives the preview, the measuring copy and the pagination alike, so the pages still hold exactly what fits. Other
   browsers keep the full A4 sheet. The cost on iOS is a plain strip at the bottom of each sheet.
 - **To try by hand:** printing on a real iPhone and iPad (the margins are device and iOS-version dependent).
+
+## Phase 27 — Saving in a later band, and Cifra's sheet
+
+- **Bug: a new song could not be saved in a band made or joined after the first one.** Those bands have no tuning yet, so
+  the form sent an empty `tuningId` and the schema refused it ("Could not save the song"). The form (and "Create and add"
+  in a setlist) now asks `tuningIdFor` for the standard tuning, which creates it when missing. The form logs the real error.
+- **Bug: "F#m" shown as "F".** A heading in brackets ("[Bass Intro x4]") was taken for a ChordPro chord mark, so the text
+  was not read as chords above the words, and ChordSheetJS treats `#` as the start of a comment. Only a bracket that holds a
+  real chord means ChordPro now, and a single line of bare chords is enough to read the text as chords above the words.
+- **Chords above the words stay as written.** Pasting or "Detect sections" no longer rewrites them as `[inline]` chords:
+  the sheet reads that layout directly (as Cifra does) and musicians edit it more easily. "Convert" still produces ChordPro.
+  The editor never wraps lines (the box scrolls sideways) so a chord stays over its syllable, and colours chord lines.
+- **Fingerings and diagrams (from Cifra).** `core/fingerings.ts` reads Cifra's lines (`Asus  x00230`, `Ab  x 11 x 13 x x`)
+  and ChordPro `{define}`; they are taken out of the text and drawn as chord boxes (`ChordDiagram`, Cifra's geometry: nut or
+  starting fret, barre detection). `core/chordShapes.ts` adds ready-made shapes (open chords, then E- or A-shape barres) for
+  the chords not spelled out, and returns null rather than guess an unusual chord. When the sheet is transposed, written
+  fingerings no longer match and only ready-made shapes are shown. Tapping a chord shows it large for a few seconds.
+- **Editor status, as in Cifra:** the chords of the song as chips (coloured when a diagram exists), a message for a
+  fingering that does not give six strings, "Paste" and "Open .txt".
+- **Repeat marks and remarks** on chord lines ("F#m C# x4", "(single strums)") are kept, in a muted colour; a line that is
+  only a remark ("(hold)") is shown as a comment instead of being sung under the chords above it.
+- **Printing a song:** "Print" in the display controls prints the sheet alone with its diagrams. There is no two-column
+  layout: a song scrolls, and with columns the follow-along highlight jumped from the first section to the middle one
+  because it assumes the sections follow each other down the page.
+- **"[Post Chorus] F":** a bracketed label with the chords of its first line right after it (no colon) is split into the
+  heading and the chord line, instead of being shown as lyrics with escaped brackets.
+- **Auto-scroll for the song length:** when a song has a length, "Scroll for the song length" makes the page reach the
+  bottom as the song ends (distance left / seconds), instead of the 1–10 speed level. Syncing with a YouTube video is not
+  done: it needs a link per song, the embedded player and a network at the gig.
+- **To try by hand:** printing a song from Safari and iOS; reading the diagrams at arm's length in stage mode.

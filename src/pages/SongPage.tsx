@@ -1,14 +1,16 @@
 import { Select } from '../components/Select';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { SwipeDirection } from '../core/autoscroll';
-import { accidentalsForKey, inferKey, transposeKey } from '../core/chords';
+import { accidentalsForKey, inferKey, transposeChord, transposeKey } from '../core/chords';
+import { chartDiagrams } from '../core/diagrams';
 import { chartChords, chartSections, parseChordPro } from '../core/chordpro';
 import { effectivePerformerIds, effectiveTuningId } from '../core/legend';
 import { itemsOfBlock, sortedBlocks, type SetlistTree } from '../core/setlistOps';
 import type { Attachment, Instrument, Part, Performer, SetlistItem, Song, Tuning } from '../core/types';
 import { formatDuration } from '../core/format';
 import { ChordChart } from '../components/ChordChart';
+import { ChordDock, DiagramStrip } from '../components/ChordDiagrams';
 import { MetronomePanel } from '../components/MetronomePanel';
 import { PerformerBadge } from '../components/PerformerBadge';
 import { Segmented } from '../components/Segmented';
@@ -194,6 +196,16 @@ function SongView({
   const accidentals = accidentalsForKey(baseKey, shift);
   const shownKey = baseKey ? transposeKey(baseKey, shift) : undefined;
 
+  // Chord diagrams (Cifra): the fingerings written in the text, then ready-made shapes; a tap on a chord shows it large.
+  const showDiagrams = useUiStore((s) => s.showDiagrams);
+  const setShowDiagrams = useUiStore((s) => s.setShowDiagrams);
+  const diagrams = useMemo(
+    () => chartDiagrams(activeText, chart, (c) => transposeChord(c, shift, accidentals), shift !== 0),
+    [activeText, chart, shift, accidentals],
+  );
+  const [dockChord, setDockChord] = useState<string | null>(null);
+  const closeDock = useCallback(() => setDockChord(null), []);
+
   // Order of the songs in the setlist we came from, for previous / next.
   const order = useMemo(
     () =>
@@ -218,7 +230,9 @@ function SongView({
   const swipe = useSwipe(onSwipe, mode === 'chords');
 
   const stop = useCallback(() => setPlaying(false), []);
-  useAutoScroll(playing, scrollLevel, stop);
+  const scrollByLength = useUiStore((s) => s.scrollByLength);
+  const setScrollByLength = useUiStore((s) => s.setScrollByLength);
+  useAutoScroll(playing, scrollLevel, stop, scrollByLength ? song.durationSec : undefined);
   // Never let the screen sleep on stage, nor while the page is scrolling by itself.
   const wake = useWakeLock(stage || playing);
 
@@ -265,7 +279,7 @@ function SongView({
   return (
     <div ref={page} className={`min-h-screen bg-paper ${slideFrom ? `band-in-${slideFrom}` : 'motion-safe:animate-fade-in'}`}>
       <header
-        className="song-header sticky top-0 z-20 bg-chrome text-chrome-ink"
+        className="song-header sticky top-0 z-20 bg-chrome text-chrome-ink print:hidden"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
@@ -296,11 +310,18 @@ function SongView({
 
       <main
         {...swipe}
-        className="mx-auto max-w-3xl touch-pan-y touch-pinch-zoom px-4 pt-4"
+        className={`mx-auto touch-pan-y touch-pinch-zoom px-4 pt-4 max-w-3xl`}
         style={{ paddingBottom: '12rem' }}
       >
+        {/* Only on paper (the screen header is too dark and sticky to print). Drawn from attributes, so it is not page text. */}
+        <div
+          aria-hidden
+          className="print-head mb-4 hidden border-b-2 border-ink pb-2 print:block"
+          data-title={song.title}
+          data-meta={[song.artist, shownKey && `${t('chart.key')} ${shownKey}`, capo > 0 && `${t('chart.capo')} ${capo}`, tuning && !tuning.isStandard && tuning.name].filter(Boolean).join(' · ')}
+        />
         {(shownKey || capo > 0 || song.tempo || song.durationSec || (tuning && !tuning.isStandard) || performerIds.length > 0) && (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
             {shownKey && <Chip icon="key" pressed={hasChart && mode === 'chords' ? controlsOpen : undefined} onClick={hasChart && mode === 'chords' ? () => setControlsOpen(!controlsOpen) : undefined}>{`${t('chart.key')} ${shownKey}`}</Chip>}
             {capo > 0 && <Chip icon="capo">{`${t('chart.capo')} ${capo}`}</Chip>}
             {song.tempo ? (
@@ -321,7 +342,7 @@ function SongView({
         )}
 
         {/* Stage mode, the metronome (when the song has no tempo) and which part to read, joined in one bar. */}
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-3 flex items-center gap-2 print:hidden">
           <StageToggle />
           {!song.tempo && (
             <button
@@ -365,9 +386,15 @@ function SongView({
           <p key={i} className="mb-2 whitespace-pre-wrap text-sm italic text-soft">{note}</p>
         ))}
 
-        {mode === 'chords' && hasChart && (
-          <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} onCurrentSection={setCurrentSection} />
+        {mode === 'chords' && hasChart && showDiagrams && (
+          <DiagramStrip entries={diagrams.entries} onPick={setDockChord} className="mb-4 border-b border-dashed border-line pb-3" />
         )}
+        {mode === 'chords' && hasChart && (
+          <div style={{ '--print-size': `${Math.round(fontSize * 0.55 * 2) / 2}pt` } as CSSProperties}>
+            <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} onCurrentSection={setCurrentSection} onChord={setDockChord} />
+          </div>
+        )}
+        <ChordDock entry={dockChord ? diagrams.lookup(dockChord) : null} onClose={closeDock} />
         {mode === 'pdf' && pdf && tabPdfs.length > 1 && (
           <Select
             label={t('part.pdfSelect')}
@@ -400,7 +427,7 @@ function SongView({
           </div>
         )}
 
-        {item && <TransitionLine item={item} className="mt-8" />}
+        {item && <TransitionLine item={item} className="mt-8 print:hidden" />}
       </main>
 
       <SongToolbar
@@ -419,6 +446,10 @@ function SongView({
         controlsOpen={controlsOpen}
         onControlsOpen={setControlsOpen}
         onNext={() => rememberSongSlide('right')}
+        diagrams={showDiagrams}
+        onDiagrams={setShowDiagrams}
+        {...(song.durationSec ? { lengthLabel: formatDuration(song.durationSec), byLength: scrollByLength, onByLength: setScrollByLength } : {})}
+        onPrint={() => { setControlsOpen(false); setPlaying(false); requestAnimationFrame(() => window.print()); }}
         {...(nextSong && next ? { next: { title: nextSong.title, to: `/setlist/${setlistId}/song/${next.id}` } } : {})}
       />
     </div>

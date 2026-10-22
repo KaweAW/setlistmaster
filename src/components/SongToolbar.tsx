@@ -76,6 +76,14 @@ export interface SongToolbarProps {
   /** The display controls can be opened from outside (the key chip opens them to transpose). */
   controlsOpen?: boolean;
   onControlsOpen?: (open: boolean) => void;
+  /** Chord diagrams above the sheet, printing the song. */
+  diagrams?: boolean;
+  onDiagrams?: (on: boolean) => void;
+  onPrint?: () => void;
+  /** The song has a length: auto-scroll can take exactly that long. */
+  lengthLabel?: string;
+  byLength?: boolean;
+  onByLength?: (on: boolean) => void;
 }
 
 /**
@@ -150,7 +158,7 @@ export function SongToolbar(p: SongToolbarProps) {
     <>
       <div
         ref={bar}
-        className={`fixed inset-x-0 bottom-0 z-30 rounded-t-2xl bg-chrome text-chrome-ink shadow-[0_-6px_24px_rgba(0,0,0,.28)] transition-transform duration-300 ease-out ${mini ? 'pointer-events-none translate-y-full' : ''}`}
+        className={`fixed inset-x-0 bottom-0 z-30 rounded-t-2xl print:hidden bg-chrome text-chrome-ink shadow-[0_-6px_24px_rgba(0,0,0,.28)] transition-transform duration-300 ease-out ${mini ? 'pointer-events-none translate-y-full' : ''}`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         {...(mini ? ({ inert: '' } as object) : {})}
       >
@@ -192,6 +200,25 @@ export function SongToolbar(p: SongToolbarProps) {
                 />
                 <Slider label={t('chart.textSizeSlider')} value={p.fontSize} min={12} max={48} step={2} onChange={p.onFontSize} />
               </div>
+              {(p.onDiagrams || p.onPrint || p.onByLength) && (
+                <div className="col-span-full flex flex-wrap items-center gap-2">
+                  {p.onDiagrams && (
+                    <button type="button" aria-pressed={!!p.diagrams} onClick={() => p.onDiagrams!(!p.diagrams)} className={`h-10 rounded-full px-4 text-sm font-semibold transition-colors ${p.diagrams ? 'bg-chrome-ink text-chrome' : 'bg-white/10 hover:bg-white/20'}`}>
+                      {t('chart.diagrams')}
+                    </button>
+                  )}
+                  {p.onByLength && (
+                    <button type="button" aria-pressed={!!p.byLength} onClick={() => p.onByLength!(!p.byLength)} className={`h-10 rounded-full px-4 text-sm font-semibold transition-colors ${p.byLength ? 'bg-chrome-ink text-chrome' : 'bg-white/10 hover:bg-white/20'}`}>
+                      {t('chart.scrollByLength', { d: p.lengthLabel ?? '' })}
+                    </button>
+                  )}
+                  {p.onPrint && (
+                    <button type="button" onClick={p.onPrint} className="ml-auto h-10 rounded-full bg-white/10 px-4 text-sm font-semibold hover:bg-white/20">
+                      {t('chart.print')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {p.next && (
@@ -243,7 +270,7 @@ export function SongToolbar(p: SongToolbarProps) {
       </div>
 
       {mini && (
-        <div className="pointer-events-none fixed inset-x-0 z-30 flex justify-center" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
+        <div className="pointer-events-none fixed inset-x-0 z-30 flex justify-center print:hidden" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
         <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-chrome p-1.5 text-chrome-ink shadow-xl motion-safe:animate-rise-in">
           <button
             type="button"

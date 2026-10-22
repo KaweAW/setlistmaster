@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartChords, parseChordPro } from '../chordpro';
+import { chartChords, chartSections, parseChordPro } from '../chordpro';
 import { chordsOverWordsToChordPro } from '../chordsOverWords';
 import { MAX_SCROLL_LEVEL, MIN_SCROLL_LEVEL, scrollSpeed, swipeDirection } from '../autoscroll';
 
@@ -49,6 +49,14 @@ describe('parseChordPro', () => {
 });
 
 describe('chordsOverWordsToChordPro', () => {
+  it('reads a bracketed label with chords on the same line ("[Post Chorus] F") as a section, not as lyrics', () => {
+    const out = chordsOverWordsToChordPro('[Post Chorus] F  C\n(hold)\n\n[Verse 2]\nF#m\nHello');
+    expect(out).toContain('{comment: Post Chorus}\n[F] [C]');
+    expect(out).not.toContain('\\[');
+    const chart = parseChordPro('[Verse 1]\nAm\nHi\n\n[Post Chorus] F  C\n(hold)\n\n[Verse 2]\nF#m\nHello');
+    expect(chartSections(chart).map((x) => x.section.text)).toEqual(['Verse 1', 'Post Chorus', 'Verse 2']);
+  });
+
   it('places each chord at its column over the lyrics', () => {
     const out = chordsOverWordsToChordPro('Em            G\nBlack hole sun, won\'t you come\nC        D/F#\nand wash away the rain');
     expect(out).toBe("[Em]Black hole sun[G], won't you come\n[C]and wash [D/F#]away the rain");
@@ -63,9 +71,9 @@ describe('chordsOverWordsToChordPro', () => {
     expect(chordsOverWordsToChordPro('C        G   D\nshort')).toBe('[C]short[G][D]');
   });
 
-  it('converts chord-only lines (intro, solo) to chords with spaces', () => {
+  it('converts chord-only lines (intro, solo) to chords with spaces, keeping bar lines and repeats', () => {
     expect(chordsOverWordsToChordPro('Intro\nAm  F  C  G\n\nAm\nlyric')).toBe('{comment: Intro}\n[Am] [F] [C] [G]\n\n[Am]lyric');
-    expect(chordsOverWordsToChordPro('Intro: Am F C | G x2')).toBe('{comment: Intro}\n[Am] [F] [C] [G]');
+    expect(chordsOverWordsToChordPro('Intro: Am F C | G x2')).toBe('{comment: Intro}\n[Am] [F] [C] [|] [G] [x2]');
   });
 
   it('never mistakes lyrics for chords (La la la, Bad, solfège, a lone "A")', () => {
