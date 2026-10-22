@@ -63,9 +63,9 @@ describe('chordsOverWordsToChordPro', () => {
     expect(chordsOverWordsToChordPro('C        G   D\nshort')).toBe('[C]short[G][D]');
   });
 
-  it('converts chord-only lines (intro, solo) to chords with spaces', () => {
+  it('converts chord-only lines (intro, solo) to chords with spaces, keeping bar lines and repeats', () => {
     expect(chordsOverWordsToChordPro('Intro\nAm  F  C  G\n\nAm\nlyric')).toBe('{comment: Intro}\n[Am] [F] [C] [G]\n\n[Am]lyric');
-    expect(chordsOverWordsToChordPro('Intro: Am F C | G x2')).toBe('{comment: Intro}\n[Am] [F] [C] [G]');
+    expect(chordsOverWordsToChordPro('Intro: Am F C | G x2')).toBe('{comment: Intro}\n[Am] [F] [C] [|] [G] [x2]');
   });
 
   it('never mistakes lyrics for chords (La la la, Bad, solfège, a lone "A")', () => {

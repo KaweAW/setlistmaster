@@ -41,3 +41,16 @@ test('the library finds a song by title and opens its page', async ({ page }) =>
   await row.click();
   await expect(page.getByRole('heading', { name: /Zombie/ })).toBeVisible();
 });
+
+test('a song pasted with chords above the words and fingerings is saved and shows its chord diagrams', async ({ page }) => {
+  await page.goto('/library/new');
+  await page.getByLabel('Title', { exact: true }).fill('Patient Song');
+  await page.getByRole('button', { name: /Charts/ }).click();
+  await page.getByLabel(/Lyrics and chords/).fill(['F#m    244222', '', '[Verse 1]', 'F#m       C#', '   I am a patient one'].join('\n'));
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/library$/);
+  await page.locator('.song-row', { hasText: 'Patient Song' }).click();
+  const strip = page.getByRole('list', { name: 'Chord diagrams' });
+  await expect(strip.getByTitle('F#m 244222')).toBeVisible();
+  await expect(strip.getByTitle('C# x46664')).toBeVisible(); // not written in the text: a ready-made barre shape
+});

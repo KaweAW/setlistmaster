@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Language } from '../i18n';
 
 export type Theme = 'light' | 'dark';
+export type SongColumns = 'auto' | '1' | '2';
 
 /** UI-only state. Domain data lives in IndexedDB behind the repository, never here. */
 interface UiState {
@@ -23,6 +24,11 @@ interface UiState {
   lastBackupAt: number | null;
   firstSeenAt: number | null;
   backupSnoozedUntil: number | null;
+  /** Chord diagrams above the sheet, and the sheet in one or two columns on wide screens ('auto' decides by line length). */
+  showDiagrams: boolean;
+  songColumns: SongColumns;
+  setShowDiagrams: (on: boolean) => void;
+  setSongColumns: (columns: SongColumns) => void;
   /** The instrument I play (a song opens on its part). Mirrored on the account when signed in; this is the offline copy. */
   myInstruments: Record<string, string>;
   setMyInstrument: (bandId: string, instrumentId: string | null) => void;
@@ -58,6 +64,10 @@ export const useUiStore = create<UiState>()(
       firstSeenAt: null,
       backupSnoozedUntil: null,
       myInstruments: {},
+      showDiagrams: true,
+      songColumns: 'auto',
+      setShowDiagrams: (showDiagrams) => set({ showDiagrams }),
+      setSongColumns: (songColumns) => set({ songColumns }),
       setMyInstrument: (bandId, instrumentId) =>
         set((s) => {
           const next = { ...s.myInstruments };
@@ -86,6 +96,8 @@ export const useUiStore = create<UiState>()(
         songFontSize: s.songFontSize,
         stageFontSize: s.stageFontSize,
         scrollLevel: s.scrollLevel,
+        showDiagrams: s.showDiagrams,
+        songColumns: s.songColumns,
         lastBackupAt: s.lastBackupAt,
         firstSeenAt: s.firstSeenAt,
         backupSnoozedUntil: s.backupSnoozedUntil,

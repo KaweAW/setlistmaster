@@ -45,7 +45,7 @@ Song lines in the pictures are invented or blurred; Scaletta never ships lyrics 
 - **Local-first, optional cloud.** Every edit is written to IndexedDB first (repository abstraction over Dexie) and queued in an outbox; a small sync engine pushes it to Supabase and pulls what is new (cursor-based, idempotent, last write wins per record). Without a cloud project the app is fully functional.
 - **Permissions in the database.** Bands, members and roles (creator, editor, viewer) are enforced with Postgres row-level security, and the policies are tested against a real Postgres (PGlite), including the "a stranger cannot read or write anything" cases.
 - **Pure domain core.** `src/core/` has no React and no browser APIs (ChordPro and chords-over-words parsing, section detection, transposition, tunings, setlist operations as pure `tree -> tree` functions, so undo/redo is just snapshots). ESLint enforces the boundaries between `core/`, `data/` and the UI.
-- **Quality gates.** TypeScript strict, ESLint, more than 350 unit, UI and database tests, and a CI workflow that runs typecheck, lint, tests and build on every pull request.
+- **Quality gates.** TypeScript strict, ESLint, more than 370 unit, UI and database tests, Playwright end-to-end tests, and a CI workflow that runs typecheck, lint, tests and build on every pull request.
 - **Real PWA.** Installable, cached in full after the first visit, with updates that wait for a tap so a gig is never interrupted.
 - [`docs/decisions.md`](docs/decisions.md) records the reasoning behind each phase.
 
@@ -53,6 +53,7 @@ Song lines in the pictures are invented or blurred; Scaletta never ships lyrics 
 
 - **Setlists** in blocks, with drag and drop, transitions ("direct segue", "hard stop"), who sings each song, and alternate tunings.
 - **Song library** with search and filters, chord charts in ChordPro or chords-over-words, transposition and capo.
+- **Chord diagrams**: write fingerings at the top of a chart (`F#m  244222`, or ChordPro `{define}`) and they become chord boxes; every other common chord gets a ready-made shape. Tap a chord in the text to see it large. One or two columns on wide screens, and a single song prints on its own.
 - **Instrument parts**: every song has its plain text, and each instrument (lead, rhythm, bass, piano… you edit the list) can have its own chart, opening on the instrument you play.
 - **PDF charts** attached to songs (several per part, picked from a list), viewed offline.
 - **Stage mode**: dark screen, large text, screen kept awake, auto-scroll, no editing buttons.

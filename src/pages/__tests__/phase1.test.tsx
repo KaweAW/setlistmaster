@@ -82,7 +82,7 @@ describe('song form', () => {
     const file = new File([new Uint8Array([37, 80, 68, 70])], 'sun.pdf', { type: 'application/pdf' });
     // jsdom lacks File.arrayBuffer in some versions
     if (!file.arrayBuffer) Object.defineProperty(file, 'arrayBuffer', { value: async () => new Uint8Array([37, 80, 68, 70]).buffer });
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileInput = document.querySelector('input[type="file"][accept*="pdf"]') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [file] } });
     expect(await screen.findByText(/sun\.pdf/)).toBeTruthy();
 

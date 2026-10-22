@@ -15,14 +15,41 @@ const DIRECTIVE = /^\s*\{[^}]*\}\s*$/;
 const FILLER = /^(\||\|\||\/|-|%|x\d+|\(x\d+\)|\(?x\d+\)?)$/i;
 const NO_CHORD = /^N\.?C\.?$/i;
 
-const isChordToken = (token: string) => isChord(token) || NO_CHORD.test(token) || FILLER.test(token);
-const isRealChord = (token: string) => isChord(token) || NO_CHORD.test(token);
+export const isChordToken = (token: string) => isChord(token) || NO_CHORD.test(token) || FILLER.test(token);
+export const isRealChord = (token: string) => isChord(token) || NO_CHORD.test(token);
 
-/** A line made only of chords (and bar/repeat marks), with at least one chord. */
-function isChordLine(line: string): boolean {
-  const tokens = line.trim().split(/\s+/).filter(Boolean);
-  return tokens.length > 0 && tokens.every(isChordToken) && tokens.some(isRealChord);
+/**
+ * The words of a line, with a remark in brackets kept as one piece: "A  D  x2  (single strums)" gives
+ * ["A", "D", "x2", "(single strums)"]. Remarks are how chord lines carry playing hints (as in Cifra).
+ */
+function piecesOf(line: string): string[] {
+  const out: string[] = [];
+  let note: string[] | null = null;
+  for (const token of line.trim().split(/\s+/).filter(Boolean)) {
+    if (note) {
+      note.push(token);
+      if (token.endsWith(')')) {
+        out.push(note.join(' '));
+        note = null;
+      }
+    } else if (token.startsWith('(') && !FILLER.test(token)) {
+      if (token.endsWith(')')) out.push(token);
+      else note = [token];
+    } else out.push(token);
+  }
+  if (note) out.push(note.join(' '));
+  return out;
 }
+const isRemark = (piece: string) => piece.startsWith('(') && !FILLER.test(piece);
+
+/** A line made only of chords (and bar/repeat marks, and remarks in brackets), with at least one chord. */
+export function isChordLine(line: string): boolean {
+  const pieces = piecesOf(line);
+  return pieces.length > 0 && pieces.every((p) => isChordToken(p) || isRemark(p)) && pieces.some(isRealChord);
+}
+
+/** A line that is only a remark in brackets, such as "(hold)" or "(let ring)": a playing hint, not words to sing. */
+const isRemarkLine = (line: string) => /^\s*\([^()]*\)\s*$/.test(line) && !FILLER.test(line.trim());
 
 const escapeLyrics = (text: string) => text.replace(/([[\]{}])/g, '\\$1');
 
@@ -39,8 +66,9 @@ function mergeChordsIntoLyrics(chordLine: string, lyric: string): string {
   return out + escapeLyrics(lyric.slice(last));
 }
 
+/** A chord line with no words under it: the chords, and the repeat marks and remarks as they were written ("x4"). */
 const chordsOnly = (chordLine: string) =>
-  chordLine.trim().split(/\s+/).filter(isRealChord).map((c) => `[${c}]`).join(' ');
+  piecesOf(chordLine).map((p) => (isRealChord(p) || FILLER.test(p) ? `[${p}]` : escapeLyrics(p))).join(' ');
 
 function labelOf(line: string): string | null {
   if (SECTION_ONLY.test(line)) return line.replace(/^[\s[(]+|[\s\]):]+$/g, '');
@@ -78,9 +106,14 @@ export function chordsOverWordsToChordPro(input: string): string {
       continue;
     }
 
+    if (isRemarkLine(line)) {
+      comment(line.trim());
+      continue;
+    }
+
     if (isChordLine(line)) {
       const next = lines[i + 1];
-      const nextIsLyric = next !== undefined && next.trim() !== '' && !DIRECTIVE.test(next) && !isChordLine(next) && labelOf(next) === null;
+      const nextIsLyric = next !== undefined && next.trim() !== '' && !DIRECTIVE.test(next) && !isChordLine(next) && !isRemarkLine(next) && labelOf(next) === null;
       if (nextIsLyric) {
         out.push(mergeChordsIntoLyrics(line, next));
         i += 1;
@@ -98,6 +131,8 @@ export function chordsOverWordsToChordPro(input: string): string {
 
 /** True for text in the "chords above the words" layout: lines of bare chords and no [chord] marks yet. */
 export function looksLikeChordsOverWords(text: string): boolean {
-  if (/\[[A-G][^\]\n]*\]/.test(text)) return false;
-  return text.split(/\r?\n/).filter((l) => l.trim() !== '' && isChordLine(l)).length >= 2;
+  // "[Am]" marks mean ChordPro; a heading in brackets ("[Bass Intro x4]") does not.
+  if ([...text.matchAll(/\[([^\]\n]+)\]/g)].some((m) => isRealChord(m[1]!.trim()))) return false;
+  // One line of bare chords is enough: read as ChordPro, "F#m C#" would lose everything after the # (a comment there).
+  return text.split(/\r?\n/).some((l) => l.trim() !== '' && isChordLine(l));
 }

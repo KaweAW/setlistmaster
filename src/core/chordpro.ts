@@ -1,5 +1,7 @@
 import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from './chordsOverWords';
 import ChordSheetJS from 'chordsheetjs';
+import { extractFingerings } from './fingerings';
+import { isChord } from './chords';
 
 const { ChordProParser, ChordLyricsPair, Tag, Comment, Literal } = ChordSheetJS;
 
@@ -67,15 +69,19 @@ const sectionOf = (name: string): SectionKind => {
 export function sectionKindOfLabel(label: string): InsertableKind | null {
   const n = label.toLowerCase().replace(/[^a-zàèéìòù ]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!n) return null;
-  if (/^(pre ?chorus|prechorus|pre ?ritornello|pre ?inciso)\b/.test(n)) return 'prechorus';
-  if (/^(post ?chorus|chorus|ritornello|refrain|hook|inciso)\b/.test(n)) return 'chorus';
-  if (/^(verse|strofa|verso|versi)\b/.test(n)) return 'verse';
-  if (/^(bridge|ponte)\b/.test(n)) return 'bridge';
-  if (/^(intro|introduzione)\b/.test(n)) return 'intro';
-  if (/^(outro|finale|coda|ending|tag)\b/.test(n)) return 'outro';
-  if (/^(solo|assolo|instrumental|strumentale|interlude|interludio|break|riff)\b/.test(n)) return 'instrumental';
-  if (/^tab\b/.test(n)) return 'tab';
-  return null;
+  const kind = (start: string): InsertableKind | null => {
+    if (new RegExp(`${start}(pre ?chorus|prechorus|pre ?ritornello|pre ?inciso)\\b`).test(n)) return 'prechorus';
+    if (new RegExp(`${start}(post ?chorus|chorus|ritornello|refrain|hook|inciso)\\b`).test(n)) return 'chorus';
+    if (new RegExp(`${start}(verse|strofa|verso|versi)\\b`).test(n)) return 'verse';
+    if (new RegExp(`${start}(bridge|ponte)\\b`).test(n)) return 'bridge';
+    if (new RegExp(`${start}(intro|introduzione)\\b`).test(n)) return 'intro';
+    if (new RegExp(`${start}(outro|finale|coda|ending|tag)\\b`).test(n)) return 'outro';
+    if (new RegExp(`${start}(solo|assolo|instrumental|strumentale|interlude|interludio|break|riff)\\b`).test(n)) return 'instrumental';
+    if (new RegExp(`${start}tab\\b`).test(n)) return 'tab';
+    return null;
+  };
+  // The word that opens the label decides ("Verse 2", "Chorus x2"); failing that, one inside it ("Bass Intro x4", "Guitar Solo").
+  return kind('^') ?? kind('\\b');
 }
 
 type ParsedSong = ReturnType<InstanceType<typeof ChordProParser>['parse']>;
@@ -146,10 +152,16 @@ function tidyBlanks(lines: ChartLine[]): ChartLine[] {
 export function parseChordPro(text: string): ParsedChart {
   try {
     // Text pasted in the "chords above the words" layout is shown properly without anyone converting it first.
-    return build(new ChordProParser().parse(looksLikeChordsOverWords(text) ? chordsOverWordsToChordPro(text) : text));
+    let body = extractFingerings(text).body; // fingering lines become diagrams, not lyrics
+    if (looksLikeChordsOverWords(body)) {
+      // Headings such as "[Verse 1]" open real sections (colour, jump chips), as "Detect sections" would make them.
+      if (!/\{start_of_/i.test(body)) body = structureSections(body).text;
+      body = chordsOverWordsToChordPro(body);
+    }
+    return build(new ChordProParser().parse(body));
   } catch {
     const lines: ChartLine[] = [];
-    for (const raw of text.split(/\r?\n/)) {
+    for (const raw of extractFingerings(text).body.split(/\r?\n/)) {
       try {
         lines.push(...build(new ChordProParser().parse(raw)).lines);
       } catch {
@@ -164,7 +176,7 @@ export function parseChordPro(text: string): ParsedChart {
 /** Every chord that appears in the chart, in order (used to guess the key). */
 export function chartChords(chart: ParsedChart): string[] {
   return chart.lines.flatMap((line) =>
-    line.kind === 'lyrics' ? line.segments.flatMap((s) => (s.chord ? [s.chord] : [])) : [],
+    line.kind === 'lyrics' ? line.segments.flatMap((s) => (s.chord && isChord(s.chord) ? [s.chord] : [])) : [],
   );
 }
 
@@ -236,7 +248,7 @@ function headingOf(line: string): string | null {
   if (!decorated) return null;
   const bracketed = decorated[1] !== undefined || decorated[2] !== undefined;
   const text = (decorated[1] ?? decorated[2] ?? decorated[3] ?? '').replace(/[*_#]+/g, '').trim();
-  if (!HEADING_WORD.test(text)) return null;
+  if (!HEADING_WORD.test(text) && !(bracketed && !isChord(text) && sectionKindOfLabel(text) !== null)) return null;
   // A bare word is only a heading when it is short ("Verse 2", "Chorus x2") or ends with a colon, so a lyric line is not swallowed.
   const marked = bracketed || /[*#=]/.test(trimmed) || trimmed.endsWith(':');
   if (!marked && text.split(/\s+/).length > 3) return null;
