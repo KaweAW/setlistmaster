@@ -374,20 +374,12 @@
 .chord-tap { cursor: pointer; padding: 0 0.08em; margin: 0 -0.08em; -webkit-tap-highlight-color: transparent; }
 .chord-tap:hover, .chord-tap:focus-visible { background: rgb(var(--c-chord) / 0.12); outline: none; }
 
-/* Two columns on wide screens (Cifra's layout for short lines): a section never breaks across columns. */
-@media (min-width: 1024px) {
-  .chart--cols2 { column-count: 2; column-gap: 2.75rem; column-rule: 1px solid rgb(var(--c-line)); }
-  .chart--cols2 .chart-section { break-inside: avoid; }
-  .chart--cols2 .chart-section:first-child { margin-top: 0; }
-}
-
 /* Printing one song: just the sheet, black on white, chords still coloured, every section sharp. */
 @media print {
   @page { size: A4; margin: 12mm; }
   html, body { background: #fff !important; }
   .chart { font-size: var(--print-size, 11pt) !important; }
   .chart-section { opacity: 1 !important; filter: none !important; background: none !important; break-inside: avoid; }
-  .chart--cols2 { column-count: 2; column-gap: 8mm; column-rule: 1px solid #ccc; }
   .diagram-strip { break-inside: avoid; }
   .chord-tap { background: none !important; }
   .bg-paper { background: #fff !important; }

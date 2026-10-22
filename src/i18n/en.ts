@@ -185,8 +185,6 @@ export const en = {
   'chart.pause': 'Pause',
   'chart.controls': 'Display controls',
   'chart.diagrams': 'Chord diagrams',
-  'chart.columns': 'Columns',
-  'chart.columnsAuto': 'Auto',
   'chart.print': 'Print',
   'chart.noFingering': 'No fingering for {name}. Write one at the top of the text, for example “{name}  x02210”.',
   'chart.fingeringWritten': 'Fingering from the text',

@@ -199,20 +199,12 @@ function SongView({
   // Chord diagrams (Cifra): the fingerings written in the text, then ready-made shapes; a tap on a chord shows it large.
   const showDiagrams = useUiStore((s) => s.showDiagrams);
   const setShowDiagrams = useUiStore((s) => s.setShowDiagrams);
-  const columnsPref = useUiStore((s) => s.songColumns);
-  const setColumnsPref = useUiStore((s) => s.setSongColumns);
   const diagrams = useMemo(
     () => chartDiagrams(activeText, chart, (c) => transposeChord(c, shift, accidentals), shift !== 0),
     [activeText, chart, shift, accidentals],
   );
   const [dockChord, setDockChord] = useState<string | null>(null);
   const closeDock = useCallback(() => setDockChord(null), []);
-  // Auto: two columns when the lines are short and there are several sections (only on wide screens, see .chart--cols2).
-  const longestLine = useMemo(
-    () => Math.max(0, ...chart.lines.map((l) => (l.kind === 'lyrics' ? l.segments.reduce((n, x) => n + x.lyrics.length + (x.chord && !x.lyrics ? x.chord.length + 1 : 0), 0) : 0))),
-    [chart],
-  );
-  const columns: 1 | 2 = stage ? 1 : columnsPref === '2' || (columnsPref === 'auto' && longestLine <= 46 && chartSections(chart).length > 2) ? 2 : 1;
 
   // Order of the songs in the setlist we came from, for previous / next.
   const order = useMemo(
@@ -316,7 +308,7 @@ function SongView({
 
       <main
         {...swipe}
-        className={`mx-auto touch-pan-y touch-pinch-zoom px-4 pt-4 ${columns === 2 && mode === 'chords' && hasChart ? 'max-w-3xl lg:max-w-6xl' : 'max-w-3xl'}`}
+        className={`mx-auto touch-pan-y touch-pinch-zoom px-4 pt-4 max-w-3xl`}
         style={{ paddingBottom: '12rem' }}
       >
         {/* Only on paper (the screen header is too dark and sticky to print). Drawn from attributes, so it is not page text. */}
@@ -397,7 +389,7 @@ function SongView({
         )}
         {mode === 'chords' && hasChart && (
           <div style={{ '--print-size': `${Math.round(fontSize * 0.55 * 2) / 2}pt` } as CSSProperties}>
-            <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} onCurrentSection={setCurrentSection} onChord={setDockChord} columns={columns} />
+            <ChordChart chart={chart} semitones={shift} accidentals={accidentals} fontSize={fontSize} stage={stage} onCurrentSection={setCurrentSection} onChord={setDockChord} />
           </div>
         )}
         <ChordDock entry={dockChord ? diagrams.lookup(dockChord) : null} onClose={closeDock} />
@@ -454,8 +446,6 @@ function SongView({
         onNext={() => rememberSongSlide('right')}
         diagrams={showDiagrams}
         onDiagrams={setShowDiagrams}
-        columns={columnsPref}
-        onColumns={setColumnsPref}
         onPrint={() => { setControlsOpen(false); setPlaying(false); requestAnimationFrame(() => window.print()); }}
         {...(nextSong && next ? { next: { title: nextSong.title, to: `/setlist/${setlistId}/song/${next.id}` } } : {})}
       />

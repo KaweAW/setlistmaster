@@ -187,8 +187,6 @@ export const it: Record<MessageKey, string> = {
   'chart.pause': 'Pausa',
   'chart.controls': 'Controlli di visualizzazione',
   'chart.diagrams': 'Diagrammi',
-  'chart.columns': 'Colonne',
-  'chart.columnsAuto': 'Auto',
   'chart.print': 'Stampa',
   'chart.noFingering': 'Nessuna diteggiatura per {name}. Scrivila in cima al testo, per esempio “{name}  x02210”.',
   'chart.fingeringWritten': 'Diteggiatura dal testo',

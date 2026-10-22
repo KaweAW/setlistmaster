@@ -51,7 +51,6 @@ export function ChordChart({
   onCurrentSection,
   focus = true,
   onChord,
-  columns = 1,
 }: {
   chart: ParsedChart;
   semitones: number;
@@ -65,8 +64,6 @@ export function ChordChart({
   focus?: boolean;
   /** Chords become buttons that report the (transposed) chord tapped: the page shows its diagram. */
   onChord?: (chord: string) => void;
-  /** Two columns on wide screens: sections are never split across them. */
-  columns?: 1 | 2;
 }) {
   const t = useT();
   const root = useRef<HTMLDivElement>(null);
@@ -168,7 +165,7 @@ export function ChordChart({
   }, [count, chart, onCurrentSection, focus]);
 
   return (
-    <div ref={root} style={{ fontSize }} className={`chart ${stage ? 'leading-normal' : 'leading-snug'} ${columns === 2 ? 'chart--cols2' : ''}`}>
+    <div ref={root} style={{ fontSize }} className={`chart ${stage ? 'leading-normal' : 'leading-snug'}`}>
       {parts.map(({ section, lines }) => (
         <section
           key={section.index}

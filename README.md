@@ -53,7 +53,7 @@ Song lines in the pictures are invented or blurred; Scaletta never ships lyrics 
 
 - **Setlists** in blocks, with drag and drop, transitions ("direct segue", "hard stop"), who sings each song, and alternate tunings.
 - **Song library** with search and filters, chord charts in ChordPro or chords-over-words, transposition and capo.
-- **Chord diagrams**: write fingerings at the top of a chart (`F#m  244222`, or ChordPro `{define}`) and they become chord boxes; every other common chord gets a ready-made shape. Tap a chord in the text to see it large. One or two columns on wide screens, and a single song prints on its own.
+- **Chord diagrams**: write fingerings at the top of a chart (`F#m  244222`, or ChordPro `{define}`) and they become chord boxes; every other common chord gets a ready-made shape. Tap a chord in the text to see it large. A single song prints on its own.
 - **Instrument parts**: every song has its plain text, and each instrument (lead, rhythm, bass, piano… you edit the list) can have its own chart, opening on the instrument you play.
 - **PDF charts** attached to songs (several per part, picked from a list), viewed offline.
 - **Stage mode**: dark screen, large text, screen kept awake, auto-scroll, no editing buttons.

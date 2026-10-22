@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useT } from '../i18n';
-import type { SongColumns } from '../state/uiStore';
 
 function Stepper({
   label, value, onDec, onInc, decLabel, incLabel, decDisabled, incDisabled, onReset,
@@ -77,11 +76,9 @@ export interface SongToolbarProps {
   /** The display controls can be opened from outside (the key chip opens them to transpose). */
   controlsOpen?: boolean;
   onControlsOpen?: (open: boolean) => void;
-  /** Chord diagrams above the sheet, columns on wide screens, printing the song. */
+  /** Chord diagrams above the sheet, printing the song. */
   diagrams?: boolean;
   onDiagrams?: (on: boolean) => void;
-  columns?: SongColumns;
-  onColumns?: (columns: SongColumns) => void;
   onPrint?: () => void;
 }
 
@@ -199,22 +196,12 @@ export function SongToolbar(p: SongToolbarProps) {
                 />
                 <Slider label={t('chart.textSizeSlider')} value={p.fontSize} min={12} max={48} step={2} onChange={p.onFontSize} />
               </div>
-              {(p.onDiagrams || p.onColumns || p.onPrint) && (
+              {(p.onDiagrams || p.onPrint) && (
                 <div className="col-span-full flex flex-wrap items-center gap-2">
                   {p.onDiagrams && (
                     <button type="button" aria-pressed={!!p.diagrams} onClick={() => p.onDiagrams!(!p.diagrams)} className={`h-10 rounded-full px-4 text-sm font-semibold transition-colors ${p.diagrams ? 'bg-chrome-ink text-chrome' : 'bg-white/10 hover:bg-white/20'}`}>
                       {t('chart.diagrams')}
                     </button>
-                  )}
-                  {p.onColumns && !p.stage && (
-                    <div role="group" aria-label={t('chart.columns')} className="hidden items-center rounded-full bg-white/10 p-1 lg:flex">
-                      <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-chrome-ink/60">{t('chart.columns')}</span>
-                      {(['auto', '1', '2'] as const).map((c) => (
-                        <button key={c} type="button" aria-pressed={p.columns === c} onClick={() => p.onColumns!(c)} className={`h-8 min-w-[2.25rem] rounded-full px-2.5 text-sm font-semibold ${p.columns === c ? 'bg-chrome-ink text-chrome' : 'hover:bg-white/10'}`}>
-                          {c === 'auto' ? t('chart.columnsAuto') : c}
-                        </button>
-                      ))}
-                    </div>
                   )}
                   {p.onPrint && (
                     <button type="button" onClick={p.onPrint} className="ml-auto h-10 rounded-full bg-white/10 px-4 text-sm font-semibold hover:bg-white/20">

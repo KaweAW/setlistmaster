@@ -536,6 +536,7 @@ and what still has to be tried by hand on real devices.
   fingering that does not give six strings, "Paste" and "Open .txt".
 - **Repeat marks and remarks** on chord lines ("F#m C# x4", "(single strums)") are kept, in a muted colour; a line that is
   only a remark ("(hold)") is shown as a comment instead of being sung under the chords above it.
-- **Columns and printing a song:** one or two columns on wide screens ("Auto" picks two for short lines and several
-  sections), and "Print" in the display controls prints the sheet alone with its diagrams.
+- **Printing a song:** "Print" in the display controls prints the sheet alone with its diagrams. There is no two-column
+  layout: a song scrolls, and with columns the follow-along highlight jumped from the first section to the middle one
+  because it assumes the sections follow each other down the page.
 - **To try by hand:** printing a song from Safari and iOS; reading the diagrams at arm's length in stage mode.
